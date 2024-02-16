@@ -1,0 +1,18 @@
+from setuptools import setup, find_packages
+
+setup(
+    name="gmux",
+    author="Sam Lader",
+    version="0.1",
+    packages=find_packages(),
+    install_requires=[
+        "Click",
+        "GitPython",
+        "Jinja2",
+        "click",
+    ],
+    entry_points="""
+        [console_scripts]
+        gmux=src.cli:gmux
+    """,
+)
