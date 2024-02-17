@@ -19,7 +19,7 @@ gh --version
 Install **gmux** using the following command:
 
 ```bash
-pip3 install .
+pip3 install https://github.com/samlader/gmux/archive/refs/tags/v0.0.1.zip
 ```
 
 ## Usage
