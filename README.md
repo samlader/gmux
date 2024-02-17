@@ -64,7 +64,7 @@ gmux cmd [COMMAND] [--filter FILTER]
 
 ### 7. Create Pull Requests
 
-Create pull requests for each repository using a specified template:
+Create pull requests for each repository:
 
 ```bash
 gmux pr
