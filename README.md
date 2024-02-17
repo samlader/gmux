@@ -54,7 +54,15 @@ gmux git [GIT_COMMAND] [--filter FILTER]
 
 - **@current:** The current branch of the repository
 
-### 6. Create Pull Requests
+### 6. Run Commands in Each Repository
+
+Execute a command in each repository. Useful for batch operations across multiple projects.
+
+```bash
+gmux cmd [--filter FILTER] [COMMAND]
+```
+
+### 7. Create Pull Requests
 
 Create pull requests for each repository using a specified template:
 
