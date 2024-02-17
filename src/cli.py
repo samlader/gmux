@@ -223,8 +223,6 @@ def git(git_command, filter):
 
             cmd = [magic_variables.get(arg, arg) for arg in git_command if arg]
 
-            _git_command = "git " + " ".join(cmd)
-
             current_branch = subprocess.run(
                 "git rev-parse --abbrev-ref HEAD",
                 shell=True,
@@ -236,7 +234,11 @@ def git(git_command, filter):
             start_time = time.time()
 
             result = subprocess.run(
-                _git_command, shell=True, cwd=folder, capture_output=True, text=True
+                ["git", *cmd],
+                shell=False,
+                cwd=folder,
+                text=True,
+                capture_output=True,
             )
 
             elapsed_time = time.time() - start_time
@@ -244,9 +246,9 @@ def git(git_command, filter):
             return_code_color = "91" if result.returncode != 0 else "37"
 
             print(
-                f"\033[97m{folder} ({current_branch})\033[0m {_git_command}",
-                result.stdout,
-                f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m",
+                f"\033[97m{folder} ({current_branch})\033[0m git {' '.join(cmd)}\n"
+                f"{result.stdout}"
+                f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m"
             )
 
         except Exception as e:
