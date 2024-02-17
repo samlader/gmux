@@ -97,7 +97,7 @@ def cmd(filter, cmd):
     def run_cmd(folder):
         print(f"\033[97m{folder}\033[0m {' '.join(cmd)}")
         start_time = time.time()
-        result = subprocess.run(" ".join(cmd), shell=True, cwd=folder)
+        result = subprocess.run(cmd, cwd=folder)
         elapsed_time = time.time() - start_time
         return_codes.append(result.returncode)
         return_code_color = "91" if result.returncode != 0 else "37"
