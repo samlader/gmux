@@ -33,7 +33,7 @@ Use the init command to create a new working directory for gmux, along with a pu
 gmux init --directory=<directory_name>
 ```
 
-### 2. Clone Repositories
+### 2. Clone Multiple Repositories
 
 Clone all repositories from a specified GitHub organization or user:
 
