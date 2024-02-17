@@ -26,7 +26,7 @@ pip3 install .
 
 ### 1. Initialize a New Directory
 
-Use the init command to create a new directory for gmux, along with a pull request template:
+Use the init command to create a new working directory for gmux, along with a pull request template:
 
 ```bash
 gmux init --directory=<directory_name>
