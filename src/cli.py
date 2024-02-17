@@ -78,9 +78,10 @@ def clone(org, filter):
         else:
             failed_repositories.append(process)
 
-    print(
-        f"\033[92m{f'Cloned {len(processes)} repositories' if True else 'Failed'}\033[0m"
-    )
+    print(f"\033[92mCloned {len(successful_repositories)} repositories\033[0m")
+
+    if failed_repositories:
+        print(f"\033[92m{len(processes)} failed\033[0m")
 
 
 @gmux.command()
