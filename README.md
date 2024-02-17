@@ -54,12 +54,12 @@ gmux git [GIT_COMMAND] [--filter FILTER]
 
 - **@current:** The current branch of the repository
 
-### 6. Run Commands in Each Repository
+### 6. Run Commands in each Repository
 
 Execute a command in each repository. Useful for batch operations across multiple projects.
 
 ```bash
-gmux cmd [--filter FILTER] [COMMAND]
+gmux cmd [COMMAND] [--filter FILTER]
 ```
 
 ### 7. Create Pull Requests
