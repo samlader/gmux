@@ -2,7 +2,7 @@
 
 A simple command-line tool designed to automate repetitive Git workflows across multiple repositories.
 
-Common tasks such as cloning repositories, committing changes and generating pull requests are dynamically executed in parallel - enabling you to ship changes at lightning speed. ⚡
+Common tasks such as cloning repositories, committing changes and generating pull requests are dynamically executed in parallel - enabling you to  ship changes at **lightning speed**. ⚡
 
 ## Installation
 
