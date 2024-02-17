@@ -28,6 +28,7 @@ def init(directory_arg, directory):
     directory_name = directory_arg or directory or "gmux"
 
     os.makedirs(directory_name, exist_ok=True)
+
     with open(f"{directory_name}/PR_TEMPLATE.md", "w") as f:
         f.write(
             """## Overview\n\nDescription for {{ repository_name }}\n\n## Changes\n\n-"""
@@ -122,9 +123,11 @@ def status(filter):
         branch_name = subprocess.check_output(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=folder, text=True
         ).strip()
+
         commit_ref = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=folder, text=True
         ).strip()
+
         print(
             f"\033[97m{folder}\033[0m \033[37m{branch_name} ({commit_ref[0:6]})\033[0m"
         )
@@ -217,8 +220,10 @@ def git(git_command, filter):
                     text=True,
                 ).strip(),
             }
+
             cmd = [magic_variables.get(arg, arg) for arg in git_command if arg]
-            git_command_str = "git " + " ".join(cmd)
+
+            _git_command = "git " + " ".join(cmd)
 
             current_branch = subprocess.run(
                 "git rev-parse --abbrev-ref HEAD",
@@ -227,15 +232,23 @@ def git(git_command, filter):
                 capture_output=True,
                 text=True,
             ).stdout.strip()
-            print(f"\033[97m{folder} ({current_branch})\033[0m {git_command_str}")
 
             start_time = time.time()
-            result = subprocess.run(git_command_str, shell=True, cwd=folder)
-            elapsed_time = time.time() - start_time
-            return_code_color = "91" if result.returncode != 0 else "37"
-            print(
-                f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m"
+
+            result = subprocess.run(
+                _git_command, shell=True, cwd=folder, capture_output=True, text=True
             )
+
+            elapsed_time = time.time() - start_time
+
+            return_code_color = "91" if result.returncode != 0 else "37"
+
+            print(
+                f"\033[97m{folder} ({current_branch})\033[0m {_git_command}",
+                result.stdout,
+                f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m",
+            )
+
         except Exception as e:
             print(f"Error for {folder}:\n \033[93m{e}\033[0m")
 
