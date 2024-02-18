@@ -83,7 +83,7 @@ The template supports [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expre
 ```jinja
 ## Overview
 
-This is a summary of the changes for {{ repository_name }}.
+This PR contains {{ diff_files|length }} changes for {{ repository_name }}.
 
 ## Changes
 
