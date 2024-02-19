@@ -11,6 +11,6 @@ setup(
     ],
     entry_points="""
         [console_scripts]
-        gmux=src.cli:gmux
+        gmux=gmux.cli:gmux
     """,
 )
