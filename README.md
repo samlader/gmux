@@ -1,9 +1,10 @@
 # gmux
+
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/samlader/gmux/releases/tag/v0.1.0)
 
 A simple command-line tool designed to automate repetitive Git workflows across multiple Github repositories.
 
-Common tasks such as cloning repositories, committing changes and generating pull requests are dynamically executed in parallel - enabling you to  ship changes at **lightning speed**. ⚡
+Common tasks like cloning repositories and performing commits occur in parallel, while pull requests are dynamically generated and fully customizable - enabling you to ship changes at **lightning speed**. ⚡
 
 ## Installation
 
@@ -41,7 +42,7 @@ Clone all repositories from a specified GitHub organization or user:
 gmux clone --org=<organization_or_user> [--filter=<regex_filter>]
 ```
 
-### 3. Dynamic Git Commands Across Repositories
+### 3. Dynamic Git Commands
 
 Execute any Git command for all repositories. Dynamic variables for each repository can be used.
 
@@ -55,7 +56,7 @@ gmux git [GIT_COMMAND] [--filter FILTER]
 
 - **@current:** The current branch of the repository
 
-### 4. Arbitrary Commands Across Repositories
+### 4. Arbitrary Commands
 
 Execute a command in each repository. Useful for batch operations across multiple projects.
 
