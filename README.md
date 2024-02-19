@@ -87,7 +87,7 @@ The template supports [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expre
 This PR contains {{ diff_files|length }} changes for {{ repository_name }}.
 
 {% if "README.md" in diff_files %}
-The README has been updated to reflect these changes accordingly.
+The documentation has been updated to reflect these changes accordingly.
 {% endif %}
 
 ## Changes
