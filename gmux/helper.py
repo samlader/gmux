@@ -1,7 +1,5 @@
 import os
-import re
 import subprocess
-import concurrent.futures
 
 import json
 from typing import Optional
@@ -68,28 +66,6 @@ def get_status(folder):
 
 def is_git_directory(folder):
     return os.path.isdir(f"{folder}/.git")
-
-
-def _for_each_repository(function, filter=None, parallel=False, *args, **kwargs):
-    folders = [
-        folder
-        for folder in os.listdir(".")
-        if is_git_directory(folder) and (not filter or re.match(filter, folder))
-    ]
-
-    if parallel:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            return executor.map(function, ["moodmap"], *args, **kwargs)
-
-    result = []
-
-    for folder in folders:
-        try:
-            result.append(function(folder, *args, **kwargs))
-        except Exception as e:
-            print(f"Error for {folder}:\n \033[93m{e}\033[0m")
-
-    return result
 
 
 def create_pr(folder, title, pr_content):

@@ -6,7 +6,6 @@ import time
 from gmux.config import DEFAULT_PR_TEMPLATE, DEFAULT_PR_TEMPLATE_NAME
 
 from gmux.helper import (
-    _for_each_repository,
     clone_repository,
     get_base_branch_name,
     get_diff_file_names,
@@ -15,7 +14,7 @@ from gmux.helper import (
     is_git_directory,
 )
 from gmux.helper import create_pr, get_repositories
-from gmux.utils import get_template, run_command
+from gmux.utils import _for_each_repository, get_template, run_command
 
 
 @click.group()
