@@ -3,6 +3,7 @@ import re
 import subprocess
 
 import json
+from typing import Optional
 
 from gmux.dataclass import RepositoryMetadata
 
@@ -49,7 +50,10 @@ def get_diff_file_names(folder, base_branch):
     )
 
 
-def get_repository_metadata(folder) -> RepositoryMetadata:
+def get_repository_metadata(folder) -> Optional[RepositoryMetadata]:
+    if not is_git_directory(folder):
+        return
+
     return RepositoryMetadata(
         default_branch=get_base_branch_name(folder),
         current_branch=get_current_branch_name(folder),
@@ -65,16 +69,17 @@ def is_git_directory(folder):
     return os.path.isdir(f"{folder}/.git")
 
 
-def _for_each_repository(function, *args, **kwargs):
+def _for_each_repository(function, filter=None, *args, **kwargs):
     result = []
 
     for folder in os.listdir("."):
         if not is_git_directory(folder):
             continue
-        if filter := kwargs.get("filter") and not re.match(filter, folder):
+        if filter and not re.match(filter, folder):
             continue
+
         try:
-            result.append(function(*args, **kwargs))
+            result.append(function(folder, *args, **kwargs))
         except Exception as e:
             print(f"Error for {folder}:\n \033[93m{e}\033[0m")
 

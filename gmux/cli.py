@@ -35,15 +35,15 @@ def init(directory_arg, directory):
         directory_arg (str): Directory name provided as an argument.
         directory_name_opt (str): Directory name provided as an option.
     """
-    directory_name = directory_arg or directory or "gmux"
+    dir = directory_arg or directory or "gmux"
 
-    os.makedirs(directory_name, exist_ok=True)
+    os.makedirs(dir, exist_ok=True)
 
-    with open(f"{directory_name}/{DEFAULT_PR_TEMPLATE_NAME}", "w") as f:
+    with open(f"{dir}/{DEFAULT_PR_TEMPLATE_NAME}", "w") as f:
         f.write(DEFAULT_PR_TEMPLATE)
 
-    print(f"\033[92m✨ gmux successfully initialised! ✨\033[0m")
-    print(f"Change your directory to `{directory_name}` to begin...")
+    click.echo(f"\033[92m✨ gmux successfully initialised! ✨\033[0m")
+    click.echo(f"Change your directory to `{dir}` to begin...")
 
 
 @gmux.command()
@@ -59,7 +59,7 @@ def cmd(filter, cmd):
     """
 
     def _cmd(folder):
-        print(f"\033[97m{folder}\033[0m {' '.join(cmd)}")
+        click.echo(f"\033[97m{folder}\033[0m {' '.join(cmd)}")
         return run_command(cmd, cwd=folder, log_metadata=True)
 
     results = _for_each_repository(_cmd, filter)
@@ -81,13 +81,16 @@ def status(filter):
     def _status(folder):
         repository_metadata = get_repository_metadata(folder)
 
-        print(
+        if not repository_metadata:
+            return
+
+        click.echo(
             f"\033[97m{folder}\033[0m \033[37m{repository_metadata.current_branch} ({repository_metadata.head_commit_ref[0:6]})\033[0m"
         )
 
         get_status(folder)
 
-    _for_each_repository(_status, filter)
+    _for_each_repository(_status, filter=filter)
 
 
 @gmux.command()
@@ -145,6 +148,9 @@ def git(git_command, filter):
         try:
             repository_metadata = get_repository_metadata(folder)
 
+            if not repository_metadata:
+                return
+
             magic_variables = {
                 "@default": repository_metadata.default_branch,
                 "@current": repository_metadata.current_branch,
@@ -165,14 +171,14 @@ def git(git_command, filter):
 
             return_code_color = "91" if result.returncode != 0 else "37"
 
-            print(
+            click.echo(
                 f"\033[97m{folder} ({repository_metadata.current_branch})\033[0m git {' '.join(cmd)}\n"
                 f"{result.stdout}"
                 f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m"
             )
 
         except Exception as e:
-            print(f"Error for {folder}:\n \033[93m{e}\033[0m")
+            click.echo(f"Error for {folder}:\n \033[93m{e}\033[0m")
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         folders = [
@@ -203,7 +209,7 @@ def clone(org, filter):
             continue
 
         if is_git_directory(repository["name"]):
-            print(f"Skipping {org}/{repository['name']}, already exists")
+            click.echo(f"Skipping {org}/{repository['name']}, already exists")
             continue
 
         process = clone_repository(org, repository["name"])
@@ -218,10 +224,10 @@ def clone(org, filter):
         else:
             failed.append(process)
 
-    print(f"\033[92mCloned {len(successful)} repositories\033[0m")
+    click.echo(f"\033[92mCloned {len(successful)} repositories\033[0m")
 
     if failed:
-        print(f"\033[92m{len(processes)} failed\033[0m")
+        click.echo(f"\033[92m{len(processes)} failed\033[0m")
 
 
 if __name__ == "__main__":
