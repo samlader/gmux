@@ -3,7 +3,6 @@ import re
 import sys
 import click
 import time
-import concurrent.futures
 from gmux.config import DEFAULT_PR_TEMPLATE, DEFAULT_PR_TEMPLATE_NAME
 
 from gmux.helper import (
@@ -32,8 +31,7 @@ def init(directory_arg, directory):
     Initialize a new directory for gmux.
 
     Args:
-        directory_arg (str): Directory name provided as an argument.
-        directory_name_opt (str): Directory name provided as an option.
+        directory (str): Directory name provided as an argument.
     """
     dir = directory_arg or directory or "gmux"
 
@@ -47,9 +45,9 @@ def init(directory_arg, directory):
 
 
 @gmux.command()
-@click.option("--filter", required=False)
 @click.argument("cmd", nargs=-1, type=click.UNPROCESSED)
-def cmd(filter, cmd):
+@click.option("--filter", required=False)
+def cmd(cmd, filter):
     """
     Run a command in each repository.
 
@@ -94,9 +92,9 @@ def status(filter):
 
 
 @gmux.command()
-@click.option("--filter", required=False)
 @click.option("--title", prompt=True)
-def pr(filter, title):
+@click.option("--filter", required=False)
+def pr(title, filter):
     """
     Create a pull request for each repository.
 
@@ -142,8 +140,6 @@ def git(git_command, filter):
         filter (str): Regex filter for repository names.
     """
 
-    # TODO: Clean this whole mess up
-
     def _git(folder):
         try:
             repository_metadata = get_repository_metadata(folder)
@@ -156,7 +152,10 @@ def git(git_command, filter):
                 "@current": repository_metadata.current_branch,
             }
 
-            cmd = [magic_variables.get(arg, arg) for arg in git_command if arg]
+            cmd = []
+
+            for variable, value in magic_variables.items():
+                cmd = [arg.replace(variable, value) for arg in git_command]
 
             start_time = time.time()
 
@@ -180,13 +179,7 @@ def git(git_command, filter):
         except Exception as e:
             click.echo(f"Error for {folder}:\n \033[93m{e}\033[0m")
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        folders = [
-            folder
-            for folder in os.listdir(".")
-            if is_git_directory(folder) and (not filter or re.match(filter, folder))
-        ]
-        executor.map(_git, folders)
+    _for_each_repository(_git, filter=filter, parallel=True)
 
 
 @gmux.command()

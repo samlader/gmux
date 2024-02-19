@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+import concurrent.futures
 
 import json
 from typing import Optional
@@ -69,15 +70,20 @@ def is_git_directory(folder):
     return os.path.isdir(f"{folder}/.git")
 
 
-def _for_each_repository(function, filter=None, *args, **kwargs):
+def _for_each_repository(function, filter=None, parallel=False, *args, **kwargs):
+    folders = [
+        folder
+        for folder in os.listdir(".")
+        if is_git_directory(folder) and (not filter or re.match(filter, folder))
+    ]
+
+    if parallel:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return executor.map(function, ["moodmap"], *args, **kwargs)
+
     result = []
 
-    for folder in os.listdir("."):
-        if not is_git_directory(folder):
-            continue
-        if filter and not re.match(filter, folder):
-            continue
-
+    for folder in folders:
         try:
             result.append(function(folder, *args, **kwargs))
         except Exception as e:
