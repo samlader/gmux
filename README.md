@@ -42,7 +42,7 @@ Clone all repositories from a specified GitHub organization or user:
 gmux clone --org=<organization_or_user> [--filter=<regex_filter>]
 ```
 
-### 3. Dynamic Git Commands
+### 3. Git Commands
 
 Execute any Git command for all repositories. Dynamic variables for each repository can be used.
 
@@ -64,7 +64,7 @@ Execute a command in each repository. Useful for batch operations across multipl
 gmux cmd [COMMAND] [--filter FILTER]
 ```
 
-### 5. Create Pull Requests
+### 5. Dynamic Pull Requests
 
 Create pull requests for each repository:
 
