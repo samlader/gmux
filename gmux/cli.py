@@ -141,43 +141,34 @@ def git(git_command, filter):
     """
 
     def _git(folder):
-        try:
-            repository_metadata = get_repository_metadata(folder)
+        repository_metadata = get_repository_metadata(folder)
 
-            if not repository_metadata:
-                return
+        if not repository_metadata:
+            return
 
-            magic_variables = {
-                "@default": repository_metadata.default_branch,
-                "@current": repository_metadata.current_branch,
-            }
+        magic_variables = {
+            "@default": repository_metadata.default_branch,
+            "@current": repository_metadata.current_branch,
+        }
 
-            cmd = []
+        cmd = []
 
-            for variable, value in magic_variables.items():
-                cmd = [arg.replace(variable, value) for arg in git_command]
+        for variable, value in magic_variables.items():
+            cmd = [arg.replace(variable, value) for arg in git_command]
 
-            start_time = time.time()
+        start_time = time.time()
 
-            result = run_command(
-                ["git", *cmd],
-                cwd=folder,
-                text=True,
-                capture_output=True,
-            )
+        result = run_command(["git", *cmd], cwd=folder, text=True, capture_output=True)
 
-            elapsed_time = time.time() - start_time
+        elapsed_time = time.time() - start_time
 
-            return_code_color = "91" if result.returncode != 0 else "37"
+        return_code_color = "91" if result.returncode != 0 else "37"
 
-            click.echo(
-                f"\033[97m{folder} ({repository_metadata.current_branch})\033[0m git {' '.join(cmd)}\n"
-                f"{result.stdout}"
-                f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m"
-            )
-
-        except Exception as e:
-            click.echo(f"Error for {folder}:\n \033[93m{e}\033[0m")
+        click.echo(
+            f"\033[97m{folder} ({repository_metadata.current_branch})\033[0m git {' '.join(cmd)}\n"
+            f"{result.stdout}"
+            f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m"
+        )
 
     _for_each_repository(_git, filter=filter, parallel=True)
 
