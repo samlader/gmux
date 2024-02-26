@@ -106,7 +106,7 @@ gmux init
 # Clone service repositories from the organization "example-org"
 gmux clone --org=example-org --filter="*-service"
 
-# Create a new branch, `feature-branch`, on all repositories
+# Create a new branch on all repositories
 gmux git checkout -b feature-branch
 
 # Make code modifications
