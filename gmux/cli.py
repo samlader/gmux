@@ -8,6 +8,7 @@ from gmux.config import DEFAULT_PR_TEMPLATE, DEFAULT_PR_TEMPLATE_NAME
 from gmux.helper import (
     clone_repository,
     get_base_branch_name,
+    get_codeowners,
     get_diff_file_names,
     get_repository_metadata,
     get_status,
@@ -63,6 +64,31 @@ def cmd(cmd, filter):
 
     if set([result.returncode for result in results]) != set([0]):
         sys.exit(1)
+
+
+@gmux.command()
+@click.argument("inspect", nargs=-1, type=click.UNPROCESSED)
+@click.option("--filter", required=False)
+def inspect(inspect, filter):
+    """
+    Run a command in each repository.
+
+    Args:
+        inspect (str): Command to run in each repository.
+        filter (str): Regex filter for repository names.
+    """
+
+    def _inspect(folder):
+        click.echo(f"\033[97m{folder}\033[0m {' '.join(inspect)}")
+        data = dict(
+            codeowners=get_codeowners(folder)
+        )
+        click.echo(data)
+
+    results = _for_each_repository(_inspect, filter)
+
+    # if set([result.returncode for result in results]) != set([0]):
+    #     sys.exit(1)
 
 
 @gmux.command()

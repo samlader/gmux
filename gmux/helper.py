@@ -1,6 +1,6 @@
 import os
 import subprocess
-
+import re
 import json
 from typing import Optional
 
@@ -78,3 +78,30 @@ def create_pr(folder, title, pr_content):
 
 def get_repositories(org):
     return json.loads(os.popen(f"gh repo list {org} --json name  --limit 9999").read())
+
+def get_codeowners(file_path):
+    owners = set()
+
+    codeowners_path = os.path.join(file_path, '.github/CODEOWNERS')
+
+    if os.path.isfile(codeowners_path):
+        with open(codeowners_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                pattern, *owner_strings = line.split()
+                for owner_string in owner_strings:
+                    if owner_string.startswith('@'):
+                        owners.add(owner_string[1:])  # remove '@' symbol
+                    elif '@' in owner_string:
+                        # Extracting the owner email address
+                        email = re.findall(r'[^@|\s]+@[^@]+\.[^@|\s]+', owner_string)
+                        if email:
+                            owners.add(email[0])
+                    elif '/' in owner_string:
+                        # Extracting team owner
+                        team = owner_string.split('/')[-1]
+                        owners.add(team)
+
+    return list(owners) if owners else None
