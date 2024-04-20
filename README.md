@@ -141,7 +141,7 @@ gmux pr
 
 ## Contributions
 
-Contributions and bug reports are welcome! Feel free to open issues or submit pull requests.
+Contributions and bug reports are welcome! Feel free to open issues, submit pull requests or contact me if you need any support.
 
 ## License
 
