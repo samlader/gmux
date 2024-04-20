@@ -8,7 +8,6 @@ from gmux.dataclass import RepositoryMetadata
 
 
 def clone_repository(org, repository, shallow=True):
-    print(f"cloning {org}/{repository}")
     process = subprocess.Popen(
         f"gh repo clone {org}/{repository} -- --depth=1", shell=True
     )

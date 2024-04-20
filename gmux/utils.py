@@ -46,7 +46,7 @@ def _for_each_repository(function, filter=None, parallel=False, *args, **kwargs)
 
     if parallel:
         with ThreadPoolExecutor() as executor:
-            return executor.map(function, ["moodmap"], *args, **kwargs)
+            return executor.map(function, folders, *args, **kwargs)
 
     result = []
 
