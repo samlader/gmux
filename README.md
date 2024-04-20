@@ -72,16 +72,25 @@ Create pull requests for each repository:
 gmux pr
 ```
 
+> [!NOTE]
+> This command will launch pre-populated draft in your browser. For safety reasons, submission of a PR is a manual action.
+
 Pull requests use the template (`PR_TEMPLATE.md`) created in the root directory by default.
 
-The template supports [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressions and has the following context variables provided:
+#### Features
+
+##### Jinja Expressions
+
+Templates support [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressions and has the following context variables provided:
 
 - `repository_name` (name of the repository)
 - `diff_files` (files with changes against the base branch)
 
-**LLM** based text generation is supported using the `ollama_chat` macro (requires a local installation of [ollama](https://ollama.com/)).
+##### Text Generation
 
-The macro requires two arguments:
+Templates support Local LLM-based text generation is supported using the `ollama_chat` macro.
+
+This macro requires a local installation of [ollama](https://ollama.com/) and accepts two arguments:
 
 - `model`(name of the model, all available models can be found [here](https://ollama.com/library))
 - `prompt`(text prompt given to the model)
