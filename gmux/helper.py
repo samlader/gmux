@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 
 import json
@@ -69,7 +70,7 @@ def is_git_directory(folder):
 
 def create_pr(folder, title, pr_content):
     subprocess.run(
-        f'gh pr create -w --title "{title}" --body "{pr_content}"',
+        f'gh pr create -w --title "{shlex.quote(title)}" --body {shlex.quote(pr_content)}',
         shell=True,
         cwd=folder,
     )
