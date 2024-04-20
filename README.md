@@ -81,9 +81,9 @@ Templates support [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressio
 
 ##### Text Generation
 
-Templates support Local LLM-based text generation using the `ollama_chat` macro.
+Templates support local LLM-based text generation using the `ollama_chat` macro.
 
-This macro requires a local installation of [ollama](https://ollama.com/) and accepts two arguments:
+This macro requires an installation of [ollama](https://ollama.com/) and accepts two arguments:
 
 - `model`(name of the model, all available models can be found [here](https://ollama.com/library))
 - `prompt`(text prompt given to the model)
@@ -95,11 +95,11 @@ This macro requires a local installation of [ollama](https://ollama.com/) and ac
 
 This PR contains {{ diff_files|length }} changes for {{ repository_name }}.
 
-{{ ollama_chat("llama3", "Write some guidelines on the usage of React hooks") }}
-
 {% if "README.md" in diff_files %}
 The documentation has been updated to reflect these changes accordingly.
 {% endif %}
+
+{{ ollama_chat("llama3", "Write some guidelines on the usage of React hooks") }}
 
 ## Changes
 
