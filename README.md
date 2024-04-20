@@ -88,7 +88,7 @@ Templates support [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressio
 
 ##### Text Generation
 
-Templates support Local LLM-based text generation is supported using the `ollama_chat` macro.
+Templates support Local LLM-based text generation using the `ollama_chat` macro.
 
 This macro requires a local installation of [ollama](https://ollama.com/) and accepts two arguments:
 
