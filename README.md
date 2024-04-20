@@ -56,15 +56,7 @@ gmux git [GIT_COMMAND] [--filter FILTER]
 
 - **@current:** The current branch of the repository
 
-### 4. Arbitrary Commands
-
-Execute a command in each repository. Useful for batch operations across multiple projects.
-
-```bash
-gmux cmd [COMMAND] [--filter FILTER]
-```
-
-### 5. Dynamic Pull Requests
+### 4. Dynamic Pull Requests
 
 Create pull requests for each repository:
 
@@ -114,6 +106,14 @@ The documentation has been updated to reflect these changes accordingly.
 {% for diff_file in diff_files %}
 - {{ diff_file }}
 {% endfor %}
+```
+
+### 5. Arbitrary Commands
+
+Execute a command in each repository. Useful for batch operations across multiple projects.
+
+```bash
+gmux cmd [COMMAND] [--filter FILTER]
 ```
 
 ## Examples
