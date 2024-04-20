@@ -74,7 +74,7 @@ Pull requests use the template (`PR_TEMPLATE.md`) created in the root directory 
 
 ##### Jinja Expressions
 
-Templates support [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressions and has the following context variables provided:
+Templates support [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressions and the following context variables are provided:
 
 - `repository_name` (name of the repository)
 - `diff_files` (files with changes against the base branch)
