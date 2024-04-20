@@ -72,8 +72,9 @@ Create pull requests for each repository:
 gmux pr
 ```
 
+<!--
 > [!NOTE]
-> This command will launch pre-populated draft in your browser. For safety reasons, submission of a PR is a manual action.
+> This command will launch pre-populated draft in your browser. For safety reasons, submission of a PR is a manual action. -->
 
 Pull requests use the template (`PR_TEMPLATE.md`) created in the root directory by default.
 
