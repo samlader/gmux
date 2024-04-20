@@ -102,10 +102,7 @@ This macro requires a local installation of [ollama](https://ollama.com/) and ac
 
 This PR contains {{ diff_files|length }} changes for {{ repository_name }}.
 
-{{ ollama_chat(
-    "llama3",
-    "I've refactored all React components to use hooks instead. Write me a simple PR description in markdown")
-}}
+{{ ollama_chat("llama3", "Write me a description of React hooks") }}
 
 {% if "README.md" in diff_files %}
 The documentation has been updated to reflect these changes accordingly.
