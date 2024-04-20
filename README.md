@@ -79,12 +79,24 @@ The template supports [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expre
 - `repository_name` (name of the repository)
 - `diff_files` (files with changes against the base branch)
 
+**LLM** based text generation is supported using the `ollama_chat` macro (requires a local installation of [ollama](https://ollama.com/)).
+
+The macro requires two arguments:
+
+- `model`(name of the model, all available models can be found [here](https://ollama.com/library))
+- `prompt`(text prompt given to the model)
+
 #### Example template
 
 ```jinja
 ## Overview
 
 This PR contains {{ diff_files|length }} changes for {{ repository_name }}.
+
+{{ ollama_chat(
+    "llama3",
+    "I've refactored all React components to use hooks instead. Write me a simple PR description in markdown")
+}}
 
 {% if "README.md" in diff_files %}
 The documentation has been updated to reflect these changes accordingly.

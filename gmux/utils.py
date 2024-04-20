@@ -7,6 +7,8 @@ from jinja2 import Template
 
 from gmux.config import DEFAULT_PR_TEMPLATE_NAME
 from gmux.helper import is_git_directory
+from gmux.macros import ollama_chat
+from gmux.macros import *
 
 
 def run_command(
@@ -34,7 +36,11 @@ def get_template(template_path=None):
     with open(template_path, "r") as f:
         template_content = f.read()
 
-    return Template(template_content)
+    template = Template(template_content)
+
+    template.globals.update(ollama_chat=ollama_chat)
+
+    return template
 
 
 def _for_each_repository(function, filter=None, parallel=False, *args, **kwargs):

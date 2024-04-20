@@ -195,7 +195,7 @@ def clone(org, filter):
             click.echo(f"Skipping {org}/{repository['name']}, already exists")
             continue
 
-        click.echo(f"cloning {org}/{repository}")
+        click.echo(f"cloning {org}/{repository["name"]}")
         process = clone_repository(org, repository["name"])
         processes.append(process)
 
