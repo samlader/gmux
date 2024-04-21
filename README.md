@@ -47,7 +47,7 @@ gmux clone --org=<organization_or_user> [--filter=<regex_filter>]
 Execute any Git command for all repositories. Dynamic variables for each repository can be used.
 
 ```bash
-gmux git [GIT_COMMAND] [--filter FILTER]
+gmux git [GIT_COMMAND] [--filter=<regex_filter>]
 ```
 
 #### Dynamic Variables
@@ -113,7 +113,7 @@ The documentation has been updated to reflect these changes accordingly.
 Execute a command in each repository. Useful for batch operations across multiple projects.
 
 ```bash
-gmux cmd [COMMAND] [--filter FILTER]
+gmux cmd [COMMAND] [--filter=<regex_filter>]
 ```
 
 ## Examples
