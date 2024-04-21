@@ -85,8 +85,8 @@ Templates support local LLM-based text generation using the `ollama_chat` macro.
 
 This macro requires an installation of [ollama](https://ollama.com/) and accepts two arguments:
 
-- `model`(name of the model, all available models can be found [here](https://ollama.com/library))
-- `prompt`(text prompt given to the model)
+- `model` (name of the model, all available models can be found [here](https://ollama.com/library))
+- `prompt` (text prompt given to the model)
 
 #### Example template
 
