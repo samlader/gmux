@@ -58,7 +58,7 @@ def cmd(cmd: List[str], filter: Optional[str]):
     """
 
     def _cmd(folder):
-        click.echo(Fore.WHITE + folder + Fore.RESET + ' ' + ' '.join(cmd))
+        click.echo(Fore.WHITE + folder + Fore.RESET + " " + " ".join(cmd))
         return run_command(cmd, cwd=folder, log_metadata=True)
 
     results = _for_each_repository(_cmd, filter)
@@ -84,8 +84,10 @@ def status(filter: Optional[str]):
             return
 
         click.echo(
-            Fore.WHITE + folder + Fore.RESET +
-            f" {repository_metadata.current_branch} ({repository_metadata.head_commit_ref[0:6]})"
+            Fore.WHITE
+            + folder
+            + Fore.RESET
+            + f" {repository_metadata.current_branch} ({repository_metadata.head_commit_ref[0:6]})"
         )
 
         get_status(folder)
@@ -167,8 +169,10 @@ def git(git_command: List[str], filter: Optional[str]):
         return_code_color = Fore.RED if result.returncode != 0 else Fore.WHITE
 
         click.echo(
-            Fore.WHITE + folder + Fore.RESET +
-            f" ({repository_metadata.current_branch}) git {' '.join(cmd)}\n"
+            Fore.WHITE
+            + folder
+            + Fore.RESET
+            + f" ({repository_metadata.current_branch}) git {' '.join(cmd)}\n"
             f"{result.stdout}"
             f"{return_code_color} {result.returncode} (elapsed time: {elapsed_time:.2f} seconds){Fore.RESET}"
         )
