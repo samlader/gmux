@@ -52,9 +52,9 @@ gmux git [GIT_COMMAND] [--filter=<regex_filter>]
 
 #### Dynamic Variables
 
-- **@default:** The default branch of a repository
+- `@default` (default branch of a repository)
 
-- **@current:** The current branch of the repository
+- `@current` (current branch of the repository)
 
 ### 4. Dynamic Pull Requests
 
@@ -81,9 +81,9 @@ Templates support [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressio
 
 ##### Text Generation
 
-Templates support local LLM-based text generation using the `ollama_chat` macro.
+Templates support LLM-based text generation using the `ollama_chat` macro.
 
-This macro requires an installation of [ollama](https://ollama.com/) and accepts two arguments:
+This macro requires a local installation of [ollama](https://ollama.com/) and accepts two arguments:
 
 - `model` (name of the model, all available models can be found [here](https://ollama.com/library))
 - `prompt` (text prompt given to the model)
