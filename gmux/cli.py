@@ -1,10 +1,12 @@
 import os
 import re
 import sys
+from typing import List, Optional
 import click
 import time
-from gmux.config import DEFAULT_PR_TEMPLATE, DEFAULT_PR_TEMPLATE_NAME
+from colorama import init, Fore
 
+from gmux.config import DEFAULT_PR_TEMPLATE, DEFAULT_PR_TEMPLATE_NAME
 from gmux.helper import (
     clone_repository,
     get_base_branch_name,
@@ -13,8 +15,8 @@ from gmux.helper import (
     get_status,
     is_git_directory,
 )
-from gmux.helper import create_pr, get_repositories
-from gmux.utils import _for_each_repository, get_template, run_command
+from gmux.helper import create_pr, get_repositories, get_template
+from gmux.utils import _for_each_repository, run_command
 
 
 @click.group()
@@ -25,7 +27,7 @@ def gmux():
 @gmux.command()
 @click.argument("directory_arg", required=False)
 @click.option("--directory", required=False)
-def init(directory_arg, directory):
+def init(directory_arg: Optional[str], directory: Optional[str]):
     """
     Initialize a new directory for gmux.
 
@@ -39,14 +41,14 @@ def init(directory_arg, directory):
     with open(f"{dir}/{DEFAULT_PR_TEMPLATE_NAME}", "w") as f:
         f.write(DEFAULT_PR_TEMPLATE)
 
-    click.echo(f"\033[92m✨ gmux successfully initialised! ✨\033[0m")
+    click.echo(Fore.GREEN + "✨ gmux successfully initialised! ✨" + Fore.RESET)
     click.echo(f"Change your directory to `{dir}` to begin...")
 
 
 @gmux.command()
 @click.argument("cmd", nargs=-1, type=click.UNPROCESSED)
 @click.option("--filter", required=False)
-def cmd(cmd, filter):
+def cmd(cmd: List[str], filter: Optional[str]):
     """
     Run a command in each repository.
 
@@ -56,7 +58,7 @@ def cmd(cmd, filter):
     """
 
     def _cmd(folder):
-        click.echo(f"\033[97m{folder}\033[0m {' '.join(cmd)}")
+        click.echo(Fore.WHITE + folder + Fore.RESET + ' ' + ' '.join(cmd))
         return run_command(cmd, cwd=folder, log_metadata=True)
 
     results = _for_each_repository(_cmd, filter)
@@ -67,7 +69,7 @@ def cmd(cmd, filter):
 
 @gmux.command()
 @click.option("--filter", required=False)
-def status(filter):
+def status(filter: Optional[str]):
     """
     Retrieve status for every repository.
 
@@ -82,7 +84,8 @@ def status(filter):
             return
 
         click.echo(
-            f"\033[97m{folder}\033[0m \033[37m{repository_metadata.current_branch} ({repository_metadata.head_commit_ref[0:6]})\033[0m"
+            Fore.WHITE + folder + Fore.RESET +
+            f" {repository_metadata.current_branch} ({repository_metadata.head_commit_ref[0:6]})"
         )
 
         get_status(folder)
@@ -93,7 +96,7 @@ def status(filter):
 @gmux.command()
 @click.option("--title", prompt=True)
 @click.option("--filter", required=False)
-def pr(title, filter):
+def pr(title: str, filter: Optional[str]):
     """
     Create a pull request for each repository.
 
@@ -131,7 +134,7 @@ def pr(title, filter):
 )
 @click.argument("git_command", nargs=-1)
 @click.option("--filter", required=False)
-def git(git_command, filter):
+def git(git_command: List[str], filter: Optional[str]):
     """
     Run any Git command (with magic variables) for all repositories.
 
@@ -161,12 +164,13 @@ def git(git_command, filter):
 
         elapsed_time = time.time() - start_time
 
-        return_code_color = "91" if result.returncode != 0 else "37"
+        return_code_color = Fore.RED if result.returncode != 0 else Fore.WHITE
 
         click.echo(
-            f"\033[97m{folder} ({repository_metadata.current_branch})\033[0m git {' '.join(cmd)}\n"
+            Fore.WHITE + folder + Fore.RESET +
+            f" ({repository_metadata.current_branch}) git {' '.join(cmd)}\n"
             f"{result.stdout}"
-            f"\033[{return_code_color}mreturn code {result.returncode} (elapsed time: {elapsed_time:.2f} seconds)\033[0m"
+            f"{return_code_color} {result.returncode} (elapsed time: {elapsed_time:.2f} seconds){Fore.RESET}"
         )
 
     _for_each_repository(_git, filter=filter, parallel=True)
@@ -175,7 +179,7 @@ def git(git_command, filter):
 @gmux.command()
 @click.option("--org", required=True)
 @click.option("--filter", required=False)
-def clone(org, filter):
+def clone(org: str, filter: Optional[str]):
     """
     Clone repositories from a specified organization or user.
 
@@ -195,7 +199,7 @@ def clone(org, filter):
             click.echo(f"Skipping {org}/{repository['name']}, already exists")
             continue
 
-        click.echo(f"cloning {org}/{repository["name"]}")
+        click.echo(f"cloning {org}/{repository['name']}")
         process = clone_repository(org, repository["name"])
         processes.append(process)
 
@@ -208,11 +212,12 @@ def clone(org, filter):
         else:
             failed.append(process)
 
-    click.echo(f"\033[92mCloned {len(successful)} repositories\033[0m")
+    click.echo(Fore.GREEN + f"Cloned {len(successful)} repositories" + Fore.RESET)
 
     if failed:
-        click.echo(f"\033[92m{len(processes)} failed\033[0m")
+        click.echo(Fore.RED + f"{len(processes)} failed" + Fore.RESET)
 
 
 if __name__ == "__main__":
+    init()
     gmux()

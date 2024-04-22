@@ -3,7 +3,7 @@ from functools import lru_cache
 
 
 @lru_cache(maxsize=None)
-def ollama_chat(model_name, prompt):
+def ollama_chat(model_name: str, prompt: str) -> str:
     # TODO: Some prompt engineering here and add additional context (e.g. diff files)
     assistant_prompt = """
         Your response to the user will be used as a snippet in a pull request,

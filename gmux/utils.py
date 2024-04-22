@@ -2,13 +2,11 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 import subprocess
 import time
+import re
+import click
+from colorama import Fore, Style
 
-from jinja2 import Template
-
-from gmux.config import DEFAULT_PR_TEMPLATE_NAME
 from gmux.helper import is_git_directory
-from gmux.macros import ollama_chat
-from gmux.macros import *
 
 
 def run_command(
@@ -24,23 +22,6 @@ def run_command(
         )
 
     return result
-
-
-def get_template(template_path=None):
-    if not template_path:
-        template_path = DEFAULT_PR_TEMPLATE_NAME
-
-    if not os.path.isfile(template_path):
-        return
-
-    with open(template_path, "r") as f:
-        template_content = f.read()
-
-    template = Template(template_content)
-
-    template.globals.update(ollama_chat=ollama_chat)
-
-    return template
 
 
 def _for_each_repository(function, filter=None, parallel=False, *args, **kwargs):
@@ -60,6 +41,6 @@ def _for_each_repository(function, filter=None, parallel=False, *args, **kwargs)
         try:
             result.append(function(folder, *args, **kwargs))
         except Exception as e:
-            print(f"Error for {folder}:\n \033[93m{e}\033[0m")
+            click.echo(f"Error for {folder}:\n {Fore.YELLOW}{e}{Style.RESET_ALL}")
 
     return result
