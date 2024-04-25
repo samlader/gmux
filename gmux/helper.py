@@ -91,7 +91,7 @@ def is_git_directory(folder) -> bool:
 
 def create_pr(folder, title, pr_content) -> subprocess.CompletedProcess:
     subprocess.run(
-        f'gh pr create -w --title "{shlex.quote(title)}" --body {shlex.quote(pr_content)}',
+        f'gh pr create -w --title {shlex.quote(title)} --body {shlex.quote(pr_content)}',
         shell=True,
         cwd=folder,
     )
