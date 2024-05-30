@@ -129,7 +129,7 @@ gmux clone --org=example-org --filter="*-service"
 gmux git checkout -b feature-branch
 
 # Run codemod across all repositories
-gmux cmd codemod -m --extensions html \
+codemod -m --extensions html \
     '<font *color="?(.*?)"?>(.*?)</font>' \
     '<span style="color: \1;">\2</span>'
 
