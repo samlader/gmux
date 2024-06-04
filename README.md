@@ -1,6 +1,6 @@
 # gmux
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/samlader/gmux/releases/tag/v0.2.0)
+[![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)](https://github.com/samlader/gmux/releases/tag/v0.2.1)
 
 A simple command-line tool designed to automate repetitive Git workflows across multiple Github repositories.
 
