@@ -13,11 +13,7 @@ Install **gmux** using one of the following methods:
 ### Using Homebrew (Recommended)
 
 ```bash
-# Install directly from the repository
-brew install samlader/gmux/gmux
-
-# Or if you prefer to tap first
-brew tap samlader/gmux
+brew tap samlader/tapx
 brew install gmux
 ```
 
