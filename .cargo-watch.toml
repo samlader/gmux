@@ -1,0 +1,15 @@
+[watch]
+# Watch all files in the project
+paths = ["src", "Cargo.toml"]
+
+# Ignore these paths
+ignore = ["target", ".git"]
+
+# Run these commands when files change
+[watch.commands]
+# Run tests
+test = "cargo test"
+# Build the project
+build = "cargo build"
+# Install the binary
+install = "cargo install --path ."

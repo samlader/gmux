@@ -1,6 +1,6 @@
 # gmux
 
-[![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)](https://github.com/samlader/gmux/releases/tag/v0.2.1)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/samlader/gmux/releases/tag/v1.0.0)
 
 A simple command-line tool designed to automate repetitive Git workflows across multiple Github repositories.
 
@@ -8,25 +8,37 @@ Common tasks like cloning repositories and performing commits occur in parallel,
 
 ## Installation
 
-Before using **gmux**, make sure you have the required dependencies installed:
+Install **gmux** using one of the following methods:
+
+### Using Homebrew (Recommended)
 
 ```bash
-# brew install git
-git --version
+# Install directly from the repository
+brew install samlader/gmux/gmux
 
-# brew install gh
-gh --version
+# Or if you prefer to tap first
+brew tap samlader/gmux
+brew install gmux
 ```
 
-Install **gmux** using the following command:
+### Using Cargo (from source)
 
 ```bash
-pip3 install https://github.com/samlader/gmux/archive/refs/tags/v0.2.1.zip
+# Install Rust (optional)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+cargo install --git https://github.com/samlader/gmux.git --tag latest
 ```
 
 ## Usage
 
-### 1. Initialize a New Directory
+### 1. Setup
+
+Setup your GitHub authentication by running the setup command. This will guide you through creating a GitHub personal access token with the required permissions:
+
+```bash
+gmux setup
+```
 
 Use the init command to create a new working directory for gmux, along with a pull request template:
 
@@ -34,15 +46,23 @@ Use the init command to create a new working directory for gmux, along with a pu
 gmux init --directory=<directory_name>
 ```
 
-### 2. Clone Multiple Repositories
+### 2. List Repositories
+
+List all repositories for a specified GitHub organization or user:
+
+```bash
+gmux list <organization_or_user>
+```
+
+### 3. Clone Multiple Repositories
 
 Clone all repositories from a specified GitHub organization or user:
 
 ```bash
-gmux clone --org=<organization_or_user> [--filter=<regex_filter>]
+gmux clone <organization_or_user> [--filter=<regex_filter>]
 ```
 
-### 3. Git Commands
+### 4. Git Commands
 
 Execute any Git command for all repositories. Dynamic variables for each repository can be used.
 
@@ -53,15 +73,14 @@ gmux git [GIT_COMMAND] [--filter=<regex_filter>]
 #### Dynamic Variables
 
 - `@default` (default branch of a repository)
-
 - `@current` (current branch of the repository)
 
-### 4. Dynamic Pull Requests
+### 5. Dynamic Pull Requests
 
 Create pull requests for each repository:
 
 ```bash
-gmux pr
+gmux pr --title "My PR Title"
 ```
 
 <!--
@@ -79,15 +98,6 @@ Templates support [Jinja](https://jinja.palletsprojects.com/en/3.1.x/) expressio
 - `repository_name` (name of the repository)
 - `diff_files` (files with changes against the base branch)
 
-##### Text Generation
-
-Templates support LLM-based text generation using the `ollama_chat` macro.
-
-This macro requires a local installation of [ollama](https://ollama.com/) and accepts two arguments:
-
-- `model` (name of the model, all available models can be found [here](https://ollama.com/library))
-- `prompt` (text prompt given to the model)
-
 #### Example template
 
 ```jinja
@@ -99,8 +109,6 @@ This PR contains {{ diff_files|length }} changes for {{ repository_name }}.
 The documentation has been updated to reflect these changes accordingly.
 {% endif %}
 
-{{ ollama_chat("llama3", "Write some guidelines on the usage of React hooks") }}
-
 ## Changes
 
 {% for diff_file in diff_files %}
@@ -108,7 +116,7 @@ The documentation has been updated to reflect these changes accordingly.
 {% endfor %}
 ```
 
-### 5. Arbitrary Commands
+### 6. Arbitrary Commands
 
 Execute a command in each repository. Useful for batch operations across multiple projects.
 
@@ -137,8 +145,18 @@ codemod -m --extensions html \
 gmux git commit -m "Implement new feature"
 
 # Create pull requests for all repositories
-gmux pr
+gmux pr --title "Implement new feature"
 ```
+
+## Makefile
+
+A `Makefile` is provided for convenience. The main targets are:
+
+- `make build` - Build the project
+- `make test` - Run all tests (unit and integration)
+- `make fmt` - Format the codebase
+- `make check` - Check code without building
+- `make clean` - Remove build artifacts
 
 ## Contributions
 
