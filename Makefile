@@ -1,5 +1,3 @@
-# Makefile for gmux-rs
-
 .PHONY: all build test fmt check clean lint watch install docs
 
 all: build
