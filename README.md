@@ -134,7 +134,7 @@ gmux clone --org=example-org --filter=".*-service" --topics="team-abc"
 gmux git checkout -b feature-branch
 
 # Run codemod across all repositories
-codemod -m --extensions html \
+gmux cmd codemod -m --extensions html \
     '<font *color="?(.*?)"?>(.*?)</font>' \
     '<span style="color: \1;">\2</span>'
 
