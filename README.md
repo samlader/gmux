@@ -48,7 +48,7 @@ gmux init --directory=<directory_name>
 List all repositories for a specified GitHub organization or user:
 
 ```bash
-gmux list <organization_or_user>
+gmux ls <organization_or_user>
 ```
 
 ### 3. Clone Multiple Repositories

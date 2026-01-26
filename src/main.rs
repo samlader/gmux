@@ -96,7 +96,7 @@ enum Commands {
         language: Option<String>,
     },
     /// List repositories for a specified organization or user
-    List {
+    Ls {
         /// Organization or user name (positional)
         #[arg(index = 1, required = true, help = "Organization or user name")]
         org: String,
@@ -133,7 +133,7 @@ async fn main() -> Result<()> {
             visibility,
             language,
         } => commands::clone(org, org_pos, filter, topics, visibility, language).await,
-        Commands::List { org } => commands::list(org).await,
+        Commands::Ls { org } => commands::list(org).await,
     };
 
     match result {
