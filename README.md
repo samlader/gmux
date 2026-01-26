@@ -67,12 +67,20 @@ Execute any Git command for all repositories. Dynamic variables for each reposit
 gmux git [GIT_COMMAND] [--filter=<regex_filter>]
 ```
 
+### 5. Arbitrary Commands
+
+Execute a command in each repository. Useful for batch operations across multiple projects.
+
+```bash
+gmux cmd [COMMAND] [--filter=<regex_filter>]
+```
+
 #### Dynamic Variables
 
 - `@default` (default branch of a repository)
 - `@current` (current branch of the repository)
 
-### 5. Dynamic Pull Requests
+### 6. Dynamic Pull Requests
 
 Create pull requests for each repository:
 
@@ -111,14 +119,6 @@ The documentation has been updated to reflect these changes accordingly.
 {% for diff_file in diff_files %}
 - {{ diff_file }}
 {% endfor %}
-```
-
-### 6. Arbitrary Commands
-
-Execute a command in each repository. Useful for batch operations across multiple projects.
-
-```bash
-gmux cmd [COMMAND] [--filter=<regex_filter>]
 ```
 
 ## Examples
