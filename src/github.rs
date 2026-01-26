@@ -15,6 +15,7 @@ pub struct Repository {
     pub private: bool,
     #[serde(default)]
     pub topics: Vec<String>,
+    pub language: Option<String>,
 }
 
 impl GitHubClient {
@@ -78,10 +79,17 @@ impl GitHubClient {
                 break;
             }
 
-            all_repos.extend(items.items.iter().map(|repo| Repository {
-                name: repo.name.clone(),
-                private: repo.private.unwrap_or(false),
-                topics: repo.topics.clone().unwrap_or_default(),
+            all_repos.extend(items.items.iter().map(|repo| {
+                Repository {
+                    name: repo.name.clone(),
+                    private: repo.private.unwrap_or(false),
+                    topics: repo.topics.clone().unwrap_or_default(),
+                    language: repo
+                        .language
+                        .as_ref()
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                }
             }));
 
             if items.items.len() < self.config.per_page as usize {

@@ -88,6 +88,12 @@ enum Commands {
         /// Filter repositories by topics (comma-separated list)
         #[arg(short, long, value_delimiter = ',')]
         topics: Option<Vec<String>>,
+        /// Filter repositories by visibility (public or private)
+        #[arg(short, long, value_name = "VISIBILITY")]
+        visibility: Option<String>,
+        /// Filter repositories by primary language
+        #[arg(short, long, value_name = "LANGUAGE")]
+        language: Option<String>,
     },
     /// List repositories for a specified organization or user
     List {
@@ -124,7 +130,9 @@ async fn main() -> Result<()> {
             org_pos,
             filter,
             topics,
-        } => commands::clone(org, org_pos, filter, topics).await,
+            visibility,
+            language,
+        } => commands::clone(org, org_pos, filter, topics, visibility, language).await,
         Commands::List { org } => commands::list(org).await,
     };
 

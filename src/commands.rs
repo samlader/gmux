@@ -319,6 +319,8 @@ pub async fn clone(
     org_pos: Option<String>,
     filter: Option<String>,
     topics: Option<Vec<String>>,
+    visibility: Option<String>,
+    language: Option<String>,
 ) -> Result<()> {
     let org = org.or(org_pos).ok_or_else(|| {
         GmuxError::Config(
@@ -343,13 +345,37 @@ pub async fn clone(
         // Apply topic filter
         if let Some(ref topics_filter) = topics {
             repos.retain(|repo| {
-                    // Repository must have at least one of the specified topics
-                    topics_filter.iter().any(|topic| {
-                        repo.topics
-                            .iter()
-                            .any(|repo_topic| repo_topic.eq_ignore_ascii_case(topic))
-                    })
-                });
+                // Repository must have at least one of the specified topics
+                topics_filter.iter().any(|topic| {
+                    repo.topics
+                        .iter()
+                        .any(|repo_topic| repo_topic.eq_ignore_ascii_case(topic))
+                })
+            });
+        }
+
+        // Apply visibility filter
+        if let Some(ref visibility_filter) = visibility {
+            let is_private = match visibility_filter.to_lowercase().as_str() {
+                "private" => true,
+                "public" => false,
+                _ => {
+                    return Err(GmuxError::Validation(
+                        "Visibility must be 'public' or 'private'".to_string(),
+                    ))
+                }
+            };
+            repos.retain(|repo| repo.private == is_private);
+        }
+
+        // Apply language filter
+        if let Some(ref language_filter) = language {
+            repos.retain(|repo| {
+                repo.language
+                    .as_ref()
+                    .map(|lang| lang.eq_ignore_ascii_case(language_filter))
+                    .unwrap_or(false)
+            });
         }
 
         repos
