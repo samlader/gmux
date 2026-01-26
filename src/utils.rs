@@ -62,7 +62,7 @@ where
     }
 
     let results: Vec<Result<()>> = stream::iter(paths)
-        .map(|path| f(path))
+        .map(f)
         .buffer_unordered(concurrency)
         .collect()
         .await;

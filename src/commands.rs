@@ -337,25 +337,19 @@ pub async fn clone(
         if let Some(ref filter) = filter {
             let regex = regex::Regex::new(filter)
                 .map_err(|e| GmuxError::Validation(format!("Invalid regex pattern: {}", e)))?;
-            repos = repos
-                .into_iter()
-                .filter(|repo| regex.is_match(&repo.name))
-                .collect();
+            repos.retain(|repo| regex.is_match(&repo.name));
         }
 
         // Apply topic filter
         if let Some(ref topics_filter) = topics {
-            repos = repos
-                .into_iter()
-                .filter(|repo| {
+            repos.retain(|repo| {
                     // Repository must have at least one of the specified topics
                     topics_filter.iter().any(|topic| {
                         repo.topics
                             .iter()
                             .any(|repo_topic| repo_topic.eq_ignore_ascii_case(topic))
                     })
-                })
-                .collect();
+                });
         }
 
         repos
