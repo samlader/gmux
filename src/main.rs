@@ -40,6 +40,9 @@ enum Commands {
         /// Regex filter for repository names
         #[arg(short, long)]
         filter: Option<String>,
+        /// Maximum number of repositories to process concurrently
+        #[arg(short, long, default_value = "10")]
+        concurrency: usize,
     },
     /// Create a pull request for each repository
     Pr {
@@ -49,6 +52,9 @@ enum Commands {
         /// Regex filter for repository names
         #[arg(short, long)]
         filter: Option<String>,
+        /// Maximum number of repositories to process concurrently
+        #[arg(short, long, default_value = "10")]
+        concurrency: usize,
     },
     /// Run any Git command for all repositories
     Git {
@@ -58,6 +64,9 @@ enum Commands {
         /// Regex filter for repository names
         #[arg(short, long)]
         filter: Option<String>,
+        /// Maximum number of repositories to process concurrently
+        #[arg(short, long, default_value = "10")]
+        concurrency: usize,
     },
     /// Clone repositories from a specified organization or user
     Clone {
@@ -92,9 +101,21 @@ async fn main() -> Result<()> {
     let result = match cli.command {
         Commands::Init { directory } => commands::init(directory).await,
         Commands::Setup { token, org } => commands::setup(token, org).await,
-        Commands::Cmd { command, filter } => commands::cmd(command, filter).await,
-        Commands::Pr { title, filter } => commands::pr(title, filter).await,
-        Commands::Git { command, filter } => commands::git(command, filter).await,
+        Commands::Cmd {
+            command,
+            filter,
+            concurrency,
+        } => commands::cmd(command, filter, concurrency).await,
+        Commands::Pr {
+            title,
+            filter,
+            concurrency,
+        } => commands::pr(title, filter, concurrency).await,
+        Commands::Git {
+            command,
+            filter,
+            concurrency,
+        } => commands::git(command, filter, concurrency).await,
         Commands::Clone {
             org,
             org_pos,

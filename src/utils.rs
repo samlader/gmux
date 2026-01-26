@@ -1,5 +1,5 @@
 use anyhow::Result;
-use futures::future::join_all;
+use futures::stream::{self, StreamExt};
 use regex::Regex;
 use std::path::Path;
 use tokio::process::Command;
@@ -30,7 +30,7 @@ pub async fn run_command_capture(cmd: &[&str], cwd: &Path) -> Result<CommandOutp
     })
 }
 
-pub async fn for_each_repository<F>(f: F, filter: Option<&str>) -> Result<()>
+pub async fn for_each_repository<F>(f: F, filter: Option<&str>, concurrency: usize) -> Result<()>
 where
     F: Fn(
             Box<Path>,
@@ -40,7 +40,7 @@ where
 {
     let current_dir = std::env::current_dir()?;
     let filter_regex = filter.map(|f| Regex::new(f).unwrap());
-    let mut tasks = Vec::new();
+    let mut paths = Vec::new();
 
     for entry in std::fs::read_dir(&current_dir)? {
         let entry = entry?;
@@ -58,10 +58,15 @@ where
         }
 
         let boxed_path: Box<Path> = path.into_boxed_path();
-        tasks.push(f(boxed_path));
+        paths.push(boxed_path);
     }
 
-    let results = join_all(tasks).await;
+    let results: Vec<Result<()>> = stream::iter(paths)
+        .map(|path| f(path))
+        .buffer_unordered(concurrency)
+        .collect()
+        .await;
+
     for result in results {
         result?;
     }
@@ -133,6 +138,7 @@ mod tests {
                 })
             },
             None,
+            10,
         )
         .await
         .unwrap();
@@ -157,6 +163,7 @@ mod tests {
                 })
             },
             Some("repo.*"),
+            10,
         )
         .await
         .unwrap();

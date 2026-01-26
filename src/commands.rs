@@ -26,7 +26,7 @@ pub async fn init(directory: Option<String>) -> Result<()> {
     Ok(())
 }
 
-pub async fn cmd(command: Vec<String>, filter: Option<String>) -> Result<()> {
+pub async fn cmd(command: Vec<String>, filter: Option<String>, concurrency: usize) -> Result<()> {
     let command_str = command.join(" ");
     let pb = ProgressBar::new_spinner();
     pb.set_style(
@@ -76,12 +76,13 @@ pub async fn cmd(command: Vec<String>, filter: Option<String>) -> Result<()> {
             })
         },
         filter.as_deref(),
+        concurrency,
     )
     .await
     .map_err(GmuxError::from)
 }
 
-pub async fn pr(title: Option<String>, filter: Option<String>) -> Result<()> {
+pub async fn pr(title: Option<String>, filter: Option<String>, concurrency: usize) -> Result<()> {
     let title = if let Some(title) = title {
         title
     } else {
@@ -247,12 +248,13 @@ pub async fn pr(title: Option<String>, filter: Option<String>) -> Result<()> {
             })
         },
         filter.as_deref(),
+        concurrency,
     )
     .await
     .map_err(GmuxError::from)
 }
 
-pub async fn git(command: Vec<String>, filter: Option<String>) -> Result<()> {
+pub async fn git(command: Vec<String>, filter: Option<String>, concurrency: usize) -> Result<()> {
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
@@ -306,6 +308,7 @@ pub async fn git(command: Vec<String>, filter: Option<String>) -> Result<()> {
             })
         },
         filter.as_deref(),
+        concurrency,
     )
     .await
     .map_err(GmuxError::from)
