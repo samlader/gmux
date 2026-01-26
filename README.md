@@ -56,7 +56,7 @@ gmux list <organization_or_user>
 Clone all repositories from a specified GitHub organization or user:
 
 ```bash
-gmux clone <organization_or_user> [--filter=<regex_filter>]
+gmux clone <organization_or_user> [--filter=<regex_filter>] [--topics=<topic1,topic2>]
 ```
 
 ### 4. Git Commands
@@ -128,7 +128,7 @@ gmux cmd [COMMAND] [--filter=<regex_filter>]
 gmux init
 
 # Clone service repositories from the organization "example-org"
-gmux clone --org=example-org --filter="*-service"
+gmux clone --org=example-org --filter=".*-service" --topics="team-abc"
 
 # Create a new branch on all repositories
 gmux git checkout -b feature-branch

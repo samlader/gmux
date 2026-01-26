@@ -13,6 +13,8 @@ pub struct GitHubClient {
 pub struct Repository {
     pub name: String,
     pub private: bool,
+    #[serde(default)]
+    pub topics: Vec<String>,
 }
 
 impl GitHubClient {
@@ -79,6 +81,7 @@ impl GitHubClient {
             all_repos.extend(items.items.iter().map(|repo| Repository {
                 name: repo.name.clone(),
                 private: repo.private.unwrap_or(false),
+                topics: repo.topics.clone().unwrap_or_default(),
             }));
 
             if items.items.len() < self.config.per_page as usize {

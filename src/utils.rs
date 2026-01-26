@@ -75,6 +75,13 @@ where
 }
 
 pub async fn get_template_content() -> Result<Option<String>> {
+    // Current dir
+    let current_dir_template = std::env::current_dir()?.join("PR_TEMPLATE.md");
+    if current_dir_template.exists() {
+        return Ok(Some(std::fs::read_to_string(current_dir_template)?));
+    }
+
+    // Fall back to config directory
     let template_path = crate::config::get_template_path();
     if !template_path.exists() {
         return Ok(None);

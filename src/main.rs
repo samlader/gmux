@@ -41,7 +41,7 @@ enum Commands {
         #[arg(short, long)]
         filter: Option<String>,
         /// Maximum number of repositories to process concurrently
-        #[arg(short, long, default_value = "10")]
+        #[arg(short, long, default_value = "50")]
         concurrency: usize,
     },
     /// Create a pull request for each repository
@@ -53,7 +53,7 @@ enum Commands {
         #[arg(short, long)]
         filter: Option<String>,
         /// Maximum number of repositories to process concurrently
-        #[arg(short, long, default_value = "10")]
+        #[arg(short, long, default_value = "50")]
         concurrency: usize,
     },
     /// Run any Git command for all repositories
@@ -65,7 +65,7 @@ enum Commands {
         #[arg(short, long)]
         filter: Option<String>,
         /// Maximum number of repositories to process concurrently
-        #[arg(short, long, default_value = "10")]
+        #[arg(short, long, default_value = "50")]
         concurrency: usize,
     },
     /// Clone repositories from a specified organization or user
@@ -85,6 +85,9 @@ enum Commands {
         /// Regex filter for repository names
         #[arg(short, long)]
         filter: Option<String>,
+        /// Filter repositories by topics (comma-separated list)
+        #[arg(short, long, value_delimiter = ',')]
+        topics: Option<Vec<String>>,
     },
     /// List repositories for a specified organization or user
     List {
@@ -120,7 +123,8 @@ async fn main() -> Result<()> {
             org,
             org_pos,
             filter,
-        } => commands::clone(org, org_pos, filter).await,
+            topics,
+        } => commands::clone(org, org_pos, filter, topics).await,
         Commands::List { org } => commands::list(org).await,
     };
 

@@ -318,6 +318,7 @@ pub async fn clone(
     org: Option<String>,
     org_pos: Option<String>,
     filter: Option<String>,
+    topics: Option<Vec<String>>,
 ) -> Result<()> {
     let org = org.or(org_pos).ok_or_else(|| {
         GmuxError::Config(
@@ -329,15 +330,35 @@ pub async fn clone(
     let repositories = client.get_repositories(&org).await?;
 
     // Apply filter BEFORE showing count and progress bar
-    let filtered_repositories: Vec<_> = if let Some(ref filter) = filter {
-        let regex = regex::Regex::new(filter)
-            .map_err(|e| GmuxError::Validation(format!("Invalid regex pattern: {}", e)))?;
-        repositories
-            .into_iter()
-            .filter(|repo| regex.is_match(&repo.name))
-            .collect()
-    } else {
-        repositories
+    let filtered_repositories: Vec<_> = {
+        let mut repos = repositories;
+
+        // Apply name filter
+        if let Some(ref filter) = filter {
+            let regex = regex::Regex::new(filter)
+                .map_err(|e| GmuxError::Validation(format!("Invalid regex pattern: {}", e)))?;
+            repos = repos
+                .into_iter()
+                .filter(|repo| regex.is_match(&repo.name))
+                .collect();
+        }
+
+        // Apply topic filter
+        if let Some(ref topics_filter) = topics {
+            repos = repos
+                .into_iter()
+                .filter(|repo| {
+                    // Repository must have at least one of the specified topics
+                    topics_filter.iter().any(|topic| {
+                        repo.topics
+                            .iter()
+                            .any(|repo_topic| repo_topic.eq_ignore_ascii_case(topic))
+                    })
+                })
+                .collect();
+        }
+
+        repos
     };
 
     println!("{}", "📦 Fetching repositories...".yellow());
