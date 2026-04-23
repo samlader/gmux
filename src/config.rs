@@ -8,7 +8,9 @@ pub const DEFAULT_PR_TEMPLATE_NAME: &str = "pr_template.md";
 pub const DEFAULT_CONFIG_DIR: &str = ".gmux";
 pub const DEFAULT_CONFIG_FILE: &str = "config.json";
 pub const GITHUB_TOKEN_ENV_VAR: &str = "GMUX_GITHUB_TOKEN";
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 const KEYRING_SERVICE: &str = "gmux";
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 const KEYRING_GITHUB_TOKEN_ACCOUNT: &str = "github-token";
 
 pub const DEFAULT_PR_TEMPLATE: &str = r#"# {{ title }}
@@ -99,6 +101,19 @@ pub fn load_github_token_from_secure_store() -> Result<Option<String>> {
         }
     }
 
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    {
+        return load_github_token_from_keyring();
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Ok(None)
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn load_github_token_from_keyring() -> Result<Option<String>> {
     let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_GITHUB_TOKEN_ACCOUNT)?;
     match entry.get_password() {
         Ok(token) if !token.trim().is_empty() => Ok(Some(token)),
@@ -107,10 +122,19 @@ pub fn load_github_token_from_secure_store() -> Result<Option<String>> {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub fn save_github_token_to_secure_store(token: &str) -> Result<()> {
     let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_GITHUB_TOKEN_ACCOUNT)?;
     entry.set_password(token)?;
     Ok(())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub fn save_github_token_to_secure_store(_token: &str) -> Result<()> {
+    Err(GmuxError::Config(format!(
+        "OS credential store is not configured for this platform. Set {} instead.",
+        GITHUB_TOKEN_ENV_VAR
+    )))
 }
 
 fn load_config_file(path: &PathBuf) -> Result<Config> {
