@@ -20,6 +20,9 @@ pub enum GmuxError {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
+    #[error("Credential store error: {0}")]
+    CredentialStore(#[from] keyring::Error),
+
     #[error("Anyhow error: {0}")]
     Anyhow(#[from] anyhow::Error),
 }

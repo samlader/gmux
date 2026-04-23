@@ -18,7 +18,7 @@ pub async fn get_repository_metadata(path: &Path) -> Result<Option<RepositoryMet
     }
 
     let current_branch = Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .args(["symbolic-ref", "--short", "HEAD"])
         .current_dir(path)
         .output()
         .await?;

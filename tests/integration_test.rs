@@ -1,6 +1,7 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
+use std::process::Command as StdCommand;
 use tempfile::TempDir;
 
 #[test]
@@ -144,6 +145,68 @@ fn test_cmd_json_output() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(value["succeeded"], 2);
     assert_eq!(value["failed"], 0);
     assert_eq!(value["results"].as_array().unwrap().len(), 2);
+
+    Ok(())
+}
+
+#[test]
+fn test_inspect_json_output() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let test_dir = temp_dir.path().join("test_workspace");
+    let repo_dir = test_dir.join("repo1");
+    fs::create_dir(&test_dir)?;
+    fs::create_dir(&repo_dir)?;
+    fs::create_dir(test_dir.join("not-a-repo"))?;
+
+    let init = StdCommand::new("git")
+        .args(["init", "-b", "main"])
+        .current_dir(&repo_dir)
+        .output()?;
+    assert!(init.status.success());
+
+    fs::write(repo_dir.join("changed.txt"), "changed")?;
+
+    let mut cmd = Command::cargo_bin("gmux")?;
+    let output = cmd
+        .arg("--json")
+        .arg("inspect")
+        .current_dir(&test_dir)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let value: serde_json::Value = serde_json::from_slice(&output)?;
+    assert_eq!(value["count"], 1);
+    assert_eq!(value["repositories"][0]["repository"], "repo1");
+    assert_eq!(value["repositories"][0]["is_git"], true);
+    assert_eq!(value["repositories"][0]["current_branch"], "main");
+    assert_eq!(value["repositories"][0]["dirty"], true);
+    assert_eq!(value["repositories"][0]["changed_files"][0], "changed.txt");
+
+    Ok(())
+}
+
+#[test]
+fn test_inspect_in_current_git_repo() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let repo_dir = temp_dir.path().join("repo1");
+    fs::create_dir(&repo_dir)?;
+
+    let init = StdCommand::new("git")
+        .args(["init", "-b", "main"])
+        .current_dir(&repo_dir)
+        .output()?;
+    assert!(init.status.success());
+
+    let mut cmd = Command::cargo_bin("gmux")?;
+    cmd.arg("inspect")
+        .current_dir(&repo_dir)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("repo1"))
+        .stdout(predicate::str::contains("main"));
 
     Ok(())
 }

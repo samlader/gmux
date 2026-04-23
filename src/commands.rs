@@ -1,10 +1,14 @@
-use crate::config::{get_config_dir, get_config_path, load_config, Config};
+use crate::config::{
+    get_config_dir, get_config_path, load_config, load_config_for_setup,
+    save_github_token_to_secure_store, Config,
+};
 use crate::error::{GmuxError, Result};
 use crate::git::{get_diff_file_names, get_repository_metadata};
 use crate::github::GitHubClient;
 use crate::output::{
-    print_json, CloneBatchResult, CloneResult, CommandBatchResult, OutputFormat,
-    PullRequestBatchResult, PullRequestPlan, RepositoryCommandResult, RepositoryErrorResult,
+    print_json, CloneBatchResult, CloneResult, CommandBatchResult, InspectCommitResult,
+    InspectRepositoryResult, InspectWorkspaceResult, OutputFormat, PullRequestBatchResult,
+    PullRequestPlan, RepositoryCommandResult, RepositoryErrorResult,
 };
 use crate::utils::{
     for_each_repository, get_template_content, repository_paths, run_command_capture,
@@ -12,8 +16,10 @@ use crate::utils::{
 use colored::Colorize;
 use futures::stream::{self, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
+use regex::Regex;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use tokio::process::Command;
 
 pub async fn init(directory: Option<String>, output: OutputFormat) -> Result<()> {
     let dir = directory.map_or_else(
@@ -38,6 +44,100 @@ pub async fn init(directory: Option<String>, output: OutputFormat) -> Result<()>
         template_path.display()
     );
     Ok(())
+}
+
+pub async fn inspect(filter: Option<String>, all: bool, output: OutputFormat) -> Result<()> {
+    let workspace = std::env::current_dir()?;
+    let mut paths = repository_paths(filter.as_deref()).map_err(GmuxError::from)?;
+    if crate::git::is_git_directory(&workspace).await
+        && path_matches_filter(&workspace, filter.as_deref())?
+    {
+        paths.insert(0, workspace.clone().into_boxed_path());
+    }
+    let mut repositories = Vec::new();
+
+    for path in paths {
+        let inspected = inspect_repository(path.as_ref()).await;
+        if !all && !inspected.is_git {
+            continue;
+        }
+        repositories.push(inspected);
+    }
+
+    if output == OutputFormat::Json {
+        return print_json(&InspectWorkspaceResult {
+            workspace: workspace.display().to_string(),
+            count: repositories.len(),
+            repositories,
+        });
+    }
+
+    println!(
+        "{} {}",
+        "Workspace:".bright_white().bold(),
+        workspace.display().to_string().dimmed()
+    );
+    println!(
+        "{} {} repositories\n",
+        "Found:".bright_white().bold(),
+        repositories.len().to_string().bright_white()
+    );
+
+    for repo in repositories {
+        if !repo.is_git {
+            println!(
+                "{} {} {}",
+                "○".dimmed(),
+                repo.repository.bright_white(),
+                "(not a git repository)".dimmed()
+            );
+            continue;
+        }
+
+        let branch = repo.current_branch.as_deref().unwrap_or("-");
+        let dirty = if repo.dirty.unwrap_or(false) {
+            "dirty".yellow()
+        } else {
+            "clean".green()
+        };
+        let ahead_behind = match (repo.ahead, repo.behind) {
+            (Some(ahead), Some(behind)) => format!("ahead {ahead}, behind {behind}"),
+            _ => "no upstream".to_string(),
+        };
+
+        println!(
+            "{} {} {} {} {}",
+            "●".green(),
+            repo.repository.bright_white().bold(),
+            branch.cyan(),
+            dirty,
+            ahead_behind.dimmed()
+        );
+
+        if !repo.changed_files.is_empty() {
+            println!(
+                "  {} {}",
+                "changed:".yellow(),
+                repo.changed_files.join(", ")
+            );
+        }
+
+        if let Some(error) = repo.error {
+            println!("  {} {}", "error:".red(), error);
+        }
+    }
+
+    Ok(())
+}
+
+fn path_matches_filter(path: &Path, filter: Option<&str>) -> Result<bool> {
+    let Some(filter) = filter else {
+        return Ok(true);
+    };
+    let regex = Regex::new(filter)
+        .map_err(|error| GmuxError::Validation(format!("Invalid regex pattern: {}", error)))?;
+    let name = repository_name(path);
+    Ok(regex.is_match(&name))
 }
 
 pub async fn cmd(
@@ -912,6 +1012,167 @@ fn repo_error(path: &Path, error: String) -> RepositoryErrorResult {
     }
 }
 
+async fn inspect_repository(path: &Path) -> InspectRepositoryResult {
+    let repository = repository_name(path);
+    let is_git = crate::git::is_git_directory(path).await;
+
+    if !is_git {
+        return InspectRepositoryResult {
+            repository,
+            path: path.display().to_string(),
+            is_git,
+            current_branch: None,
+            default_branch: None,
+            remote_url: None,
+            upstream: None,
+            ahead: None,
+            behind: None,
+            dirty: None,
+            changed_files: Vec::new(),
+            last_commit: None,
+            error: None,
+        };
+    }
+
+    let mut error = None;
+    let metadata = match get_repository_metadata(path).await {
+        Ok(metadata) => metadata,
+        Err(err) => {
+            error = Some(err.to_string());
+            None
+        }
+    };
+    let current_branch = metadata.as_ref().map(|m| m.current_branch.clone());
+    let default_branch = metadata.as_ref().map(|m| m.default_branch.clone());
+
+    let remote_url = optional_git_output(path, &["remote", "get-url", "origin"]).await;
+    let upstream = optional_git_output(
+        path,
+        &[
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{upstream}",
+        ],
+    )
+    .await;
+    let (ahead, behind) = inspect_ahead_behind(path).await.unwrap_or((None, None));
+    let changed_files = inspect_changed_files(path).await.unwrap_or_default();
+    let dirty = Some(!changed_files.is_empty());
+    let last_commit = inspect_last_commit(path).await;
+
+    InspectRepositoryResult {
+        repository,
+        path: path.display().to_string(),
+        is_git,
+        current_branch,
+        default_branch,
+        remote_url,
+        upstream,
+        ahead,
+        behind,
+        dirty,
+        changed_files,
+        last_commit,
+        error,
+    }
+}
+
+async fn optional_git_output(path: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(path)
+        .output()
+        .await
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if value.is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+async fn inspect_ahead_behind(path: &Path) -> std::result::Result<(Option<u32>, Option<u32>), ()> {
+    let output = Command::new("git")
+        .args(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"])
+        .current_dir(path)
+        .output()
+        .await
+        .map_err(|_| ())?;
+
+    if !output.status.success() {
+        return Ok((None, None));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut parts = stdout.split_whitespace();
+    let behind = parts.next().and_then(|value| value.parse().ok());
+    let ahead = parts.next().and_then(|value| value.parse().ok());
+
+    Ok((ahead, behind))
+}
+
+async fn inspect_changed_files(path: &Path) -> std::result::Result<Vec<String>, ()> {
+    let output = Command::new("git")
+        .args(["status", "--porcelain=v1"])
+        .current_dir(path)
+        .output()
+        .await
+        .map_err(|_| ())?;
+
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+
+    let files = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(parse_porcelain_file)
+        .collect();
+
+    Ok(files)
+}
+
+fn parse_porcelain_file(line: &str) -> Option<String> {
+    if line.len() < 4 {
+        return None;
+    }
+
+    let path = &line[3..];
+    if let Some((_, new_path)) = path.split_once(" -> ") {
+        Some(new_path.to_string())
+    } else {
+        Some(path.to_string())
+    }
+}
+
+async fn inspect_last_commit(path: &Path) -> Option<InspectCommitResult> {
+    let output = Command::new("git")
+        .args(["log", "-1", "--format=%H%x00%h%x00%s%x00%cI"])
+        .current_dir(path)
+        .output()
+        .await
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut parts = stdout.trim_end().split('\0');
+    Some(InspectCommitResult {
+        hash: parts.next()?.to_string(),
+        short_hash: parts.next()?.to_string(),
+        subject: parts.next()?.to_string(),
+        committed_at: parts.next()?.to_string(),
+    })
+}
+
 pub async fn setup(token: Option<String>, org: Option<String>, output: OutputFormat) -> Result<()> {
     let config_dir = get_config_dir();
     let config_path = get_config_path();
@@ -921,12 +1182,9 @@ pub async fn setup(token: Option<String>, org: Option<String>, output: OutputFor
         std::fs::create_dir_all(&config_dir)?;
     }
 
-    // Load existing config if it exists
-    let mut config = if config_path.exists() {
-        load_config(&config_path)?
-    } else {
-        Config::default()
-    };
+    // Load existing config without requiring a token. This allows setup to recover
+    // from missing credentials and migrate legacy config-file tokens.
+    let mut config = load_config_for_setup(&config_path)?;
 
     // If no token, open browser to GitHub token page
     if config.github_token.is_empty() && token.is_none() {
@@ -957,6 +1215,7 @@ pub async fn setup(token: Option<String>, org: Option<String>, output: OutputFor
             ..Default::default()
         })?;
         client.validate_token().await?;
+        save_github_token_to_secure_store(&token)?;
         config.github_token = token;
     }
 
@@ -971,18 +1230,20 @@ pub async fn setup(token: Option<String>, org: Option<String>, output: OutputFor
         config.default_org = org.trim().to_string();
     }
 
-    // Save the config
+    // Save non-secret config only. The token is stored in the OS credential store.
     config.save(&config_path)?;
 
     if output == OutputFormat::Json {
         print_json(&serde_json::json!({
             "config_path": config_path,
             "default_org": config.default_org,
+            "credential_store": "os",
             "status": "saved"
         }))?;
     } else {
         println!("\n{}", "Configuration saved successfully!".green());
         println!("Config location: {}", config_path.display());
+        println!("GitHub token: stored in the OS credential store");
 
         if !config.default_org.is_empty() {
             println!("Default organization: {}", config.default_org);

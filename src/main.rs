@@ -40,6 +40,15 @@ enum Commands {
         #[arg(short, long)]
         org: Option<String>,
     },
+    /// Inspect local repository state
+    Inspect {
+        /// Regex filter for repository names
+        #[arg(short, long)]
+        filter: Option<String>,
+        /// Include non-git directories in the output
+        #[arg(long)]
+        all: bool,
+    },
     /// Run a command in each repository
     Cmd {
         /// Command to run
@@ -132,6 +141,7 @@ async fn main() -> Result<()> {
     let result = match cli.command {
         Commands::Init { directory } => commands::init(directory, output).await,
         Commands::Setup { token, org } => commands::setup(token, org, output).await,
+        Commands::Inspect { filter, all } => commands::inspect(filter, all, output).await,
         Commands::Cmd {
             command,
             filter,
