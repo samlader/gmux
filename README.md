@@ -11,14 +11,14 @@ Common tasks like cloning repositories and performing commits occur in parallel,
 
 Install **gmux** using one of the following methods:
 
-### Using Homebrew (Recommended)
+### Using Homebrew
 
 ```bash
 brew tap samlader/tap
 brew install gmux
 ```
 
-### Using Cargo (from source)
+### Using Cargo
 
 ```bash
 # Install Rust (optional)
