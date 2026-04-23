@@ -119,6 +119,36 @@ fn test_cmd_command() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_cmd_json_output() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let test_dir = temp_dir.path().join("test_workspace");
+    fs::create_dir(&test_dir)?;
+    fs::create_dir(test_dir.join("repo1"))?;
+    fs::create_dir(test_dir.join("repo2"))?;
+
+    let mut cmd = Command::cargo_bin("gmux")?;
+    let output = cmd
+        .arg("--json")
+        .arg("cmd")
+        .arg("printf")
+        .arg("ok")
+        .current_dir(&test_dir)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let value: serde_json::Value = serde_json::from_slice(&output)?;
+    assert_eq!(value["command"], "printf ok");
+    assert_eq!(value["succeeded"], 2);
+    assert_eq!(value["failed"], 0);
+    assert_eq!(value["results"].as_array().unwrap().len(), 2);
+
+    Ok(())
+}
+
+#[test]
 fn test_pr_command() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let test_dir = temp_dir.path().join("test_workspace");

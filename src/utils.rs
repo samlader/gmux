@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use futures::stream::{self, StreamExt};
 use regex::Regex;
 use std::path::Path;
@@ -30,16 +30,11 @@ pub async fn run_command_capture(cmd: &[&str], cwd: &Path) -> Result<CommandOutp
     })
 }
 
-pub async fn for_each_repository<F>(f: F, filter: Option<&str>, concurrency: usize) -> Result<()>
-where
-    F: Fn(
-            Box<Path>,
-        )
-            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'static>>
-        + Sync,
-{
+pub fn repository_paths(filter: Option<&str>) -> Result<Vec<Box<Path>>> {
     let current_dir = std::env::current_dir()?;
-    let filter_regex = filter.map(|f| Regex::new(f).unwrap());
+    let filter_regex = filter
+        .map(|f| Regex::new(f).map_err(|e| anyhow!("Invalid regex pattern: {}", e)))
+        .transpose()?;
     let mut paths = Vec::new();
 
     for entry in std::fs::read_dir(&current_dir)? {
@@ -61,6 +56,18 @@ where
         paths.push(boxed_path);
     }
 
+    Ok(paths)
+}
+
+pub async fn for_each_repository<F>(f: F, filter: Option<&str>, concurrency: usize) -> Result<()>
+where
+    F: Fn(
+            Box<Path>,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'static>>
+        + Sync,
+{
+    let paths = repository_paths(filter)?;
     let results: Vec<Result<()>> = stream::iter(paths)
         .map(f)
         .buffer_unordered(concurrency)

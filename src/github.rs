@@ -9,7 +9,7 @@ pub struct GitHubClient {
     config: Config,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct Repository {
     pub name: String,
     pub private: bool,

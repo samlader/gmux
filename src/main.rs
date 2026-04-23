@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::output::OutputFormat;
 use clap::{Parser, Subcommand};
 
 mod commands;
@@ -6,11 +7,18 @@ mod config;
 mod error;
 mod git;
 mod github;
+mod output;
 mod utils;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Output format
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text, global = true)]
+    output: OutputFormat,
+    /// Emit JSON output
+    #[arg(long, global = true)]
+    json: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -49,6 +57,15 @@ enum Commands {
         /// Title for the Pull Request
         #[arg(short, long)]
         title: Option<String>,
+        /// Push missing branches and continue without prompts
+        #[arg(short, long)]
+        yes: bool,
+        /// Fail instead of prompting for input
+        #[arg(long)]
+        no_input: bool,
+        /// Render the PR plan without pushing or opening a browser
+        #[arg(long)]
+        dry_run: bool,
         /// Regex filter for repository names
         #[arg(short, long)]
         filter: Option<String>,
@@ -106,25 +123,33 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    let output = if cli.json {
+        OutputFormat::Json
+    } else {
+        cli.output
+    };
 
     let result = match cli.command {
-        Commands::Init { directory } => commands::init(directory).await,
-        Commands::Setup { token, org } => commands::setup(token, org).await,
+        Commands::Init { directory } => commands::init(directory, output).await,
+        Commands::Setup { token, org } => commands::setup(token, org, output).await,
         Commands::Cmd {
             command,
             filter,
             concurrency,
-        } => commands::cmd(command, filter, concurrency).await,
+        } => commands::cmd(command, filter, concurrency, output).await,
         Commands::Pr {
             title,
+            yes,
+            no_input,
+            dry_run,
             filter,
             concurrency,
-        } => commands::pr(title, filter, concurrency).await,
+        } => commands::pr(title, yes, no_input, dry_run, filter, concurrency, output).await,
         Commands::Git {
             command,
             filter,
             concurrency,
-        } => commands::git(command, filter, concurrency).await,
+        } => commands::git(command, filter, concurrency, output).await,
         Commands::Clone {
             org,
             org_pos,
@@ -132,8 +157,8 @@ async fn main() -> Result<()> {
             topics,
             visibility,
             language,
-        } => commands::clone(org, org_pos, filter, topics, visibility, language).await,
-        Commands::Ls { org } => commands::list(org).await,
+        } => commands::clone(org, org_pos, filter, topics, visibility, language, output).await,
+        Commands::Ls { org } => commands::list(org, output).await,
     };
 
     match result {

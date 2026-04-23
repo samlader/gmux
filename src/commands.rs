@@ -2,13 +2,20 @@ use crate::config::{get_config_dir, get_config_path, load_config, Config};
 use crate::error::{GmuxError, Result};
 use crate::git::{get_diff_file_names, get_repository_metadata};
 use crate::github::GitHubClient;
-use crate::utils::{for_each_repository, get_template_content, run_command_capture};
+use crate::output::{
+    print_json, CloneBatchResult, CloneResult, CommandBatchResult, OutputFormat,
+    PullRequestBatchResult, PullRequestPlan, RepositoryCommandResult, RepositoryErrorResult,
+};
+use crate::utils::{
+    for_each_repository, get_template_content, repository_paths, run_command_capture,
+};
 use colored::Colorize;
+use futures::stream::{self, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-pub async fn init(directory: Option<String>) -> Result<()> {
+pub async fn init(directory: Option<String>, output: OutputFormat) -> Result<()> {
     let dir = directory.map_or_else(
         || std::env::current_dir().unwrap(),
         std::path::PathBuf::from,
@@ -18,6 +25,13 @@ pub async fn init(directory: Option<String>) -> Result<()> {
     if !template_path.exists() {
         std::fs::write(&template_path, crate::config::DEFAULT_PR_TEMPLATE)?;
     }
+    if output == OutputFormat::Json {
+        return print_json(&serde_json::json!({
+            "directory": dir,
+            "template_path": template_path,
+            "status": "initialized"
+        }));
+    }
     println!("{}", "✨ gmux successfully initialised! ✨".green());
     println!(
         "PR template has been created in {}",
@@ -26,8 +40,45 @@ pub async fn init(directory: Option<String>) -> Result<()> {
     Ok(())
 }
 
-pub async fn cmd(command: Vec<String>, filter: Option<String>, concurrency: usize) -> Result<()> {
+pub async fn cmd(
+    command: Vec<String>,
+    filter: Option<String>,
+    concurrency: usize,
+    output: OutputFormat,
+) -> Result<()> {
     let command_str = command.join(" ");
+    if output == OutputFormat::Json {
+        let paths = repository_paths(filter.as_deref()).map_err(GmuxError::from)?;
+        let results: Vec<std::result::Result<RepositoryCommandResult, RepositoryErrorResult>> =
+            stream::iter(paths)
+                .map(|path| {
+                    let command_str = command_str.clone();
+                    async move { run_shell_command_for_json(path.as_ref(), &command_str).await }
+                })
+                .buffer_unordered(concurrency)
+                .collect()
+                .await;
+
+        let mut command_results = Vec::new();
+        let mut errors = Vec::new();
+        for result in results {
+            match result {
+                Ok(result) => command_results.push(result),
+                Err(error) => errors.push(error),
+            }
+        }
+
+        let succeeded = command_results.iter().filter(|r| r.exit_code == 0).count();
+        let failed = command_results.len().saturating_sub(succeeded) + errors.len();
+        return print_json(&CommandBatchResult {
+            command: command_str,
+            succeeded,
+            failed,
+            results: command_results,
+            errors,
+        });
+    }
+
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
@@ -82,9 +133,21 @@ pub async fn cmd(command: Vec<String>, filter: Option<String>, concurrency: usiz
     .map_err(GmuxError::from)
 }
 
-pub async fn pr(title: Option<String>, filter: Option<String>, concurrency: usize) -> Result<()> {
+pub async fn pr(
+    title: Option<String>,
+    yes: bool,
+    no_input: bool,
+    dry_run: bool,
+    filter: Option<String>,
+    concurrency: usize,
+    output: OutputFormat,
+) -> Result<()> {
     let title = if let Some(title) = title {
         title
+    } else if no_input || output == OutputFormat::Json {
+        return Err(GmuxError::Validation(
+            "PR title is required in non-interactive mode".to_string(),
+        ));
     } else {
         print!("{}", "Enter PR title: ".bright_white());
         io::stdout().flush()?;
@@ -92,6 +155,10 @@ pub async fn pr(title: Option<String>, filter: Option<String>, concurrency: usiz
         io::stdin().read_line(&mut input)?;
         input.trim().to_string()
     };
+
+    if output == OutputFormat::Json {
+        return pr_json(title, yes, dry_run, filter, concurrency).await;
+    }
 
     println!(
         "🚀 Starting PR command with title: {}",
@@ -168,16 +235,30 @@ pub async fn pr(title: Option<String>, filter: Option<String>, concurrency: usiz
                     let branch_exists = !String::from_utf8_lossy(&output.stdout).trim().is_empty();
 
                     if !branch_exists {
-                        println!(
-                            "❗ Branch {} has not been pushed to the remote.\n❓ Do you want to push it? ( {} )",
-                            metadata.current_branch.bright_yellow().bold(),
-                            "y/n".bright_white().bold()
-                        );
-                        let mut input = String::new();
-                        std::io::stdin()
-                            .read_line(&mut input)
-                            .map_err(GmuxError::from)?;
-                        if input.trim().to_lowercase() == "y" {
+                        if dry_run {
+                            println!(
+                                "⏭️  Dry run: branch {} has not been pushed",
+                                metadata.current_branch.bright_yellow().bold()
+                            );
+                            return Ok(());
+                        }
+                        let should_push = if yes {
+                            true
+                        } else if no_input {
+                            false
+                        } else {
+                            println!(
+                                "❗ Branch {} has not been pushed to the remote.\n❓ Do you want to push it? ( {} )",
+                                metadata.current_branch.bright_yellow().bold(),
+                                "y/n".bright_white().bold()
+                            );
+                            let mut input = String::new();
+                            std::io::stdin()
+                                .read_line(&mut input)
+                                .map_err(GmuxError::from)?;
+                            input.trim().to_lowercase() == "y"
+                        };
+                        if should_push {
                             let push_output = tokio::process::Command::new("git")
                                 .args(["push", "-u", "origin", &metadata.current_branch])
                                 .current_dir(&path)
@@ -241,7 +322,11 @@ pub async fn pr(title: Option<String>, filter: Option<String>, concurrency: usiz
                         urlencoding::encode(&title),
                         urlencoding::encode(&pr_content)
                     );
-                    let _ = open::that(url);
+                    if dry_run {
+                        println!("{}", url);
+                    } else {
+                        let _ = open::that(url);
+                    }
                 }
                 println!("{}", "─".repeat(80).dimmed());
                 Ok(())
@@ -254,7 +339,45 @@ pub async fn pr(title: Option<String>, filter: Option<String>, concurrency: usiz
     .map_err(GmuxError::from)
 }
 
-pub async fn git(command: Vec<String>, filter: Option<String>, concurrency: usize) -> Result<()> {
+pub async fn git(
+    command: Vec<String>,
+    filter: Option<String>,
+    concurrency: usize,
+    output: OutputFormat,
+) -> Result<()> {
+    if output == OutputFormat::Json {
+        let command_label = format!("git {}", command.join(" "));
+        let paths = repository_paths(filter.as_deref()).map_err(GmuxError::from)?;
+        let results: Vec<std::result::Result<RepositoryCommandResult, RepositoryErrorResult>> =
+            stream::iter(paths)
+                .map(|path| {
+                    let command = command.clone();
+                    async move { run_git_command_for_json(path.as_ref(), command).await }
+                })
+                .buffer_unordered(concurrency)
+                .collect()
+                .await;
+
+        let mut command_results = Vec::new();
+        let mut errors = Vec::new();
+        for result in results {
+            match result {
+                Ok(result) => command_results.push(result),
+                Err(error) => errors.push(error),
+            }
+        }
+
+        let succeeded = command_results.iter().filter(|r| r.exit_code == 0).count();
+        let failed = command_results.len().saturating_sub(succeeded) + errors.len();
+        return print_json(&CommandBatchResult {
+            command: command_label,
+            succeeded,
+            failed,
+            results: command_results,
+            errors,
+        });
+    }
+
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
@@ -321,6 +444,7 @@ pub async fn clone(
     topics: Option<Vec<String>>,
     visibility: Option<String>,
     language: Option<String>,
+    output: OutputFormat,
 ) -> Result<()> {
     let org = org.or(org_pos).ok_or_else(|| {
         GmuxError::Config(
@@ -381,12 +505,63 @@ pub async fn clone(
         repos
     };
 
-    println!("{}", "📦 Fetching repositories...".yellow());
-    println!(
-        "{} {} repositories found",
-        "✓".green(),
-        filtered_repositories.len().to_string().bright_white()
-    );
+    if output == OutputFormat::Text {
+        println!("{}", "📦 Fetching repositories...".yellow());
+        println!(
+            "{} {} repositories found",
+            "✓".green(),
+            filtered_repositories.len().to_string().bright_white()
+        );
+    }
+
+    if output == OutputFormat::Json {
+        let matched = filtered_repositories.len();
+        let mut results = Vec::new();
+        let mut cloned = 0;
+        let mut skipped = 0;
+        let mut failed = 0;
+
+        for repository in filtered_repositories {
+            let repo_path = PathBuf::from(&repository.name);
+            if repo_path.join(".git").exists() {
+                skipped += 1;
+                results.push(CloneResult {
+                    repository: repository.name,
+                    status: "skipped".to_string(),
+                    error: None,
+                });
+                continue;
+            }
+
+            match client.clone_repository(&org, &repository.name).await {
+                Ok(_) => {
+                    cloned += 1;
+                    results.push(CloneResult {
+                        repository: repository.name,
+                        status: "cloned".to_string(),
+                        error: None,
+                    });
+                }
+                Err(error) => {
+                    failed += 1;
+                    results.push(CloneResult {
+                        repository: repository.name,
+                        status: "failed".to_string(),
+                        error: Some(error.to_string()),
+                    });
+                }
+            }
+        }
+
+        return print_json(&CloneBatchResult {
+            organization: org,
+            matched,
+            cloned,
+            skipped,
+            failed,
+            results,
+        });
+    }
 
     let pb = ProgressBar::new(filtered_repositories.len() as u64);
     pb.set_style(
@@ -435,7 +610,309 @@ pub async fn clone(
     Ok(())
 }
 
-pub async fn setup(token: Option<String>, org: Option<String>) -> Result<()> {
+async fn run_shell_command_for_json(
+    path: &Path,
+    command: &str,
+) -> std::result::Result<RepositoryCommandResult, RepositoryErrorResult> {
+    let repository = repository_name(path);
+    let start = std::time::Instant::now();
+    match run_command_capture(&["sh", "-c", command], path).await {
+        Ok(output) => Ok(RepositoryCommandResult {
+            repository,
+            path: path.display().to_string(),
+            command: command.to_string(),
+            exit_code: output.exit_code,
+            stdout: output.stdout,
+            stderr: output.stderr,
+            duration_ms: start.elapsed().as_millis(),
+        }),
+        Err(error) => Err(RepositoryErrorResult {
+            repository,
+            path: path.display().to_string(),
+            error: error.to_string(),
+        }),
+    }
+}
+
+async fn run_git_command_for_json(
+    path: &Path,
+    command: Vec<String>,
+) -> std::result::Result<RepositoryCommandResult, RepositoryErrorResult> {
+    let repository = repository_name(path);
+    let metadata = match get_repository_metadata(path).await {
+        Ok(Some(metadata)) => metadata,
+        Ok(None) => {
+            return Err(RepositoryErrorResult {
+                repository,
+                path: path.display().to_string(),
+                error: "not a git repository".to_string(),
+            });
+        }
+        Err(error) => {
+            return Err(RepositoryErrorResult {
+                repository,
+                path: path.display().to_string(),
+                error: error.to_string(),
+            });
+        }
+    };
+
+    let mut cmd = command;
+    for arg in &mut cmd {
+        *arg = arg.replace("@default", &metadata.default_branch);
+        *arg = arg.replace("@current", &metadata.current_branch);
+    }
+
+    let mut full_cmd = vec!["git"];
+    full_cmd.extend(cmd.iter().map(|s| s.as_str()));
+    let command_label = format!("git {}", cmd.join(" "));
+    let start = std::time::Instant::now();
+    match run_command_capture(&full_cmd, path).await {
+        Ok(output) => Ok(RepositoryCommandResult {
+            repository,
+            path: path.display().to_string(),
+            command: command_label,
+            exit_code: output.exit_code,
+            stdout: output.stdout,
+            stderr: output.stderr,
+            duration_ms: start.elapsed().as_millis(),
+        }),
+        Err(error) => Err(RepositoryErrorResult {
+            repository,
+            path: path.display().to_string(),
+            error: error.to_string(),
+        }),
+    }
+}
+
+async fn pr_json(
+    title: String,
+    yes: bool,
+    dry_run: bool,
+    filter: Option<String>,
+    concurrency: usize,
+) -> Result<()> {
+    let template_content = get_template_content().await?;
+    let Some(template_content) = template_content else {
+        return Err(GmuxError::Validation(
+            "PR template not found. Run 'gmux init' first.".to_string(),
+        ));
+    };
+
+    let paths = repository_paths(filter.as_deref()).map_err(GmuxError::from)?;
+    let results: Vec<std::result::Result<PullRequestPlan, RepositoryErrorResult>> =
+        stream::iter(paths)
+            .map(|path| {
+                let template_content = template_content.clone();
+                let title = title.clone();
+                async move {
+                    pr_plan_for_json(path.as_ref(), &title, &template_content, yes, dry_run).await
+                }
+            })
+            .buffer_unordered(concurrency)
+            .collect()
+            .await;
+
+    let mut plans = Vec::new();
+    let mut errors = Vec::new();
+    for result in results {
+        match result {
+            Ok(plan) => plans.push(plan),
+            Err(error) => errors.push(error),
+        }
+    }
+
+    print_json(&PullRequestBatchResult {
+        title,
+        dry_run,
+        plans,
+        errors,
+    })
+}
+
+async fn pr_plan_for_json(
+    path: &Path,
+    title: &str,
+    template_content: &str,
+    yes: bool,
+    dry_run: bool,
+) -> std::result::Result<PullRequestPlan, RepositoryErrorResult> {
+    let repository = repository_name(path);
+    if !crate::git::is_git_directory(path).await {
+        return Ok(PullRequestPlan {
+            repository,
+            path: path.display().to_string(),
+            owner: None,
+            repo: None,
+            base: None,
+            head: None,
+            title: title.to_string(),
+            body: None,
+            url: None,
+            status: "skipped".to_string(),
+            reason: Some("not a git repository".to_string()),
+        });
+    }
+
+    let metadata = get_repository_metadata(path)
+        .await
+        .map_err(|error| repo_error(path, error.to_string()))?
+        .ok_or_else(|| repo_error(path, "not a git repository".to_string()))?;
+    let diff_files = get_diff_file_names(path, &metadata.default_branch)
+        .await
+        .map_err(|error| repo_error(path, error.to_string()))?;
+
+    if diff_files.is_empty() {
+        return Ok(PullRequestPlan {
+            repository,
+            path: path.display().to_string(),
+            owner: None,
+            repo: None,
+            base: Some(metadata.default_branch),
+            head: Some(metadata.current_branch),
+            title: title.to_string(),
+            body: None,
+            url: None,
+            status: "skipped".to_string(),
+            reason: Some("no changes found".to_string()),
+        });
+    }
+
+    let branch_exists_output = tokio::process::Command::new("git")
+        .args(["ls-remote", "--heads", "origin", &metadata.current_branch])
+        .current_dir(path)
+        .output()
+        .await
+        .map_err(|error| repo_error(path, error.to_string()))?;
+    let branch_exists = !String::from_utf8_lossy(&branch_exists_output.stdout)
+        .trim()
+        .is_empty();
+
+    if !branch_exists && !dry_run {
+        if !yes {
+            return Ok(PullRequestPlan {
+                repository,
+                path: path.display().to_string(),
+                owner: None,
+                repo: None,
+                base: Some(metadata.default_branch),
+                head: Some(metadata.current_branch),
+                title: title.to_string(),
+                body: None,
+                url: None,
+                status: "skipped".to_string(),
+                reason: Some("branch has not been pushed; pass --yes to push".to_string()),
+            });
+        }
+
+        let push_output = tokio::process::Command::new("git")
+            .args(["push", "-u", "origin", &metadata.current_branch])
+            .current_dir(path)
+            .output()
+            .await
+            .map_err(|error| repo_error(path, error.to_string()))?;
+        if !push_output.status.success() {
+            return Err(repo_error(
+                path,
+                String::from_utf8_lossy(&push_output.stderr).to_string(),
+            ));
+        }
+    }
+
+    let remote_output = tokio::process::Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()
+        .await
+        .map_err(|error| repo_error(path, error.to_string()))?;
+    let remote_url = String::from_utf8_lossy(&remote_output.stdout)
+        .trim()
+        .to_string();
+    let (owner, repo) = parse_github_remote(&remote_url).ok_or_else(|| {
+        repo_error(
+            path,
+            format!("could not parse GitHub remote URL: {}", remote_url),
+        )
+    })?;
+
+    let body = render_pr_body(template_content, title, &repository, &diff_files);
+    let url = format!(
+        "https://github.com/{}/{}/compare/{}...{}?expand=1&title={}&body={}",
+        owner,
+        repo,
+        metadata.default_branch,
+        metadata.current_branch,
+        urlencoding::encode(title),
+        urlencoding::encode(&body)
+    );
+
+    Ok(PullRequestPlan {
+        repository,
+        path: path.display().to_string(),
+        owner: Some(owner),
+        repo: Some(repo),
+        base: Some(metadata.default_branch),
+        head: Some(metadata.current_branch),
+        title: title.to_string(),
+        body: Some(body),
+        url: Some(url),
+        status: if dry_run { "planned" } else { "ready" }.to_string(),
+        reason: None,
+    })
+}
+
+fn render_pr_body(
+    template_content: &str,
+    title: &str,
+    repository: &str,
+    diff_files: &[String],
+) -> String {
+    template_content
+        .replace("{{ title }}", title)
+        .replace("{{ repository_name }}", repository)
+        .replace(
+            "{% for file in diff_files %}\n- {{ file }}\n{% endfor %}",
+            &diff_files
+                .iter()
+                .map(|f| format!("- {}", f))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+}
+
+fn parse_github_remote(remote_url: &str) -> Option<(String, String)> {
+    let trimmed = remote_url.trim_end_matches(".git");
+    if let Some(path) = trimmed.strip_prefix("git@github.com:") {
+        let mut parts = path.split('/');
+        return Some((parts.next()?.to_string(), parts.next()?.to_string()));
+    }
+
+    let parts: Vec<&str> = trimmed.split('/').collect();
+    if parts.len() >= 2 {
+        return Some((
+            parts[parts.len() - 2].to_string(),
+            parts[parts.len() - 1].to_string(),
+        ));
+    }
+
+    None
+}
+
+fn repository_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.display().to_string())
+}
+
+fn repo_error(path: &Path, error: String) -> RepositoryErrorResult {
+    RepositoryErrorResult {
+        repository: repository_name(path),
+        path: path.display().to_string(),
+        error,
+    }
+}
+
+pub async fn setup(token: Option<String>, org: Option<String>, output: OutputFormat) -> Result<()> {
     let config_dir = get_config_dir();
     let config_path = get_config_path();
 
@@ -497,19 +974,35 @@ pub async fn setup(token: Option<String>, org: Option<String>) -> Result<()> {
     // Save the config
     config.save(&config_path)?;
 
-    println!("\n{}", "Configuration saved successfully!".green());
-    println!("Config location: {}", config_path.display());
+    if output == OutputFormat::Json {
+        print_json(&serde_json::json!({
+            "config_path": config_path,
+            "default_org": config.default_org,
+            "status": "saved"
+        }))?;
+    } else {
+        println!("\n{}", "Configuration saved successfully!".green());
+        println!("Config location: {}", config_path.display());
 
-    if !config.default_org.is_empty() {
-        println!("Default organization: {}", config.default_org);
+        if !config.default_org.is_empty() {
+            println!("Default organization: {}", config.default_org);
+        }
     }
 
     Ok(())
 }
 
-pub async fn list(org: String) -> Result<()> {
+pub async fn list(org: String, output: OutputFormat) -> Result<()> {
     let client = GitHubClient::new(load_config(&get_config_path())?)?;
     let repositories = client.get_repositories(&org).await?;
+
+    if output == OutputFormat::Json {
+        return print_json(&serde_json::json!({
+            "organization": org,
+            "count": repositories.len(),
+            "repositories": repositories
+        }));
+    }
 
     println!("Fetching repositories...");
     println!(
